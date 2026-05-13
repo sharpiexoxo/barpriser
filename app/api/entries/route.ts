@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, initDb } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
@@ -13,12 +15,14 @@ export async function GET(req: NextRequest) {
   const conditions: string[] = [];
   const args: (string | number)[] = [];
 
-  if (venueId)  { conditions.push("e.venue_id = ?");  args.push(venueId); }
-  if (category) { conditions.push("e.category = ?");  args.push(category); }
+  if (venueId)  { conditions.push("e.venue_id = ?"); args.push(venueId); }
+  if (category) { conditions.push("e.category = ?"); args.push(category); }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const db = getDb();
+  await initDb();
+
   const result = await db.execute({
     sql: `SELECT e.*, v.name as venue_name, v.location as venue_location
           FROM entries e
@@ -48,8 +52,8 @@ export async function POST(req: NextRequest) {
   if (isNaN(price)) return NextResponse.json({ error: "valid price_dkk required" }, { status: 400 });
 
   const db = getDb();
+  await initDb();
 
-  // Check venue exists
   const venueCheck = await db.execute({
     sql: "SELECT id FROM venues WHERE id = ?",
     args: [venueId],
@@ -58,12 +62,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Venue not found" }, { status: 404 });
   }
 
-  // Handle photo upload to Cloudinary (if configured) or skip
+  // Upload photo to Cloudinary if configured
   let photoPath: string | null = null;
   if (photo && ALLOWED.has(photo.type)) {
-    const cloudName  = process.env.CLOUDINARY_CLOUD_NAME;
+    const cloudName    = process.env.CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-
     if (cloudName && uploadPreset) {
       try {
         const fd = new FormData();
