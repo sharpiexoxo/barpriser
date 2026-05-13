@@ -1,24 +1,34 @@
-import { createClient } from "@libsql/client";
+import { createClient, type Client } from "@libsql/client";
 
-// Works both locally (file:) and on Vercel (libsql:// Turso URL)
-export function getDb() {
-  const url = process.env.TURSO_DATABASE_URL ?? "file:barpriser.db";
-  const authToken = process.env.TURSO_AUTH_TOKEN; // undefined is fine for local file
+let _client: Client | null = null;
 
-  return createClient({ url, authToken });
+export function getDb(): Client {
+  if (_client) return _client;
+
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (!url) {
+    throw new Error("TURSO_DATABASE_URL is not set.");
+  }
+
+  _client = createClient({ url, authToken });
+  return _client;
 }
 
-export async function initDb() {
+let _initialized = false;
+
+export async function initDb(): Promise<void> {
+  if (_initialized) return;
   const db = getDb();
-  await db.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS venues (
+  await db.batch([
+    `CREATE TABLE IF NOT EXISTS venues (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       name       TEXT NOT NULL,
       location   TEXT,
       created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS entries (
+    )`,
+    `CREATE TABLE IF NOT EXISTS entries (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       venue_id   INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
       drink      TEXT NOT NULL,
@@ -27,12 +37,12 @@ export async function initDb() {
       notes      TEXT,
       photo_path TEXT,
       created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_entries_venue   ON entries(venue_id);
-    CREATE INDEX IF NOT EXISTS idx_entries_created ON entries(created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_entries_cat     ON entries(category);
-  `);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_entries_venue   ON entries(venue_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_entries_created ON entries(created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_entries_cat     ON entries(category)`,
+  ], "write");
+  _initialized = true;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
