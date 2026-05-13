@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand:       #C94E2A;
+  --brand-light: #F7EDE8;
+  --brand-mid:   #E8795A;
+  --brand-dark:  #7A2A12;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-ink font-sans;
+  }
+
+  input, select, textarea {
+    @apply w-full px-3 py-2.5 border border-surface-3 rounded-lg text-sm font-sans
+           bg-surface text-ink transition-all duration-150 outline-none
+           focus:border-brand focus:ring-2 focus:ring-brand/10;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A837C' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 2.5rem;
+    appearance: none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-surface-3 rounded-xl p-5;
+  }
+
+  .btn {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium
+           transition-all duration-150 cursor-pointer border-0 font-sans;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-dark;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink-2 border border-surface-3 hover:bg-surface-2;
+  }
+  .btn-danger {
+    @apply btn bg-red-50 text-red-700 hover:bg-red-100;
+  }
+
+  .section-label {
+    @apply font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3 mb-2.5
+           flex items-center gap-2
+           after:content-[''] after:flex-1 after:h-px after:bg-surface-3;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-mono;
+  }
+
+  .chip {
+    @apply px-4 py-1.5 rounded-full border border-surface-3 text-sm cursor-pointer
+           bg-surface-2 text-ink-2 transition-all duration-100
+           hover:border-brand hover:text-brand;
+  }
+  .chip-active {
+    @apply bg-brand text-white border-brand;
+  }
+}
