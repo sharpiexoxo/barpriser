@@ -7,7 +7,7 @@ import type { Venue } from "@/lib/db";
 import clsx from "clsx";
 import Link from "next/link";
 
-const CATEGORIES = ["Beer (draft)","Beer (bottle/can)","Wine (glass)","Cocktail","Spirit (single)","Shot","Soft drink","Other"];
+const CATEGORIES = ["Øl (fad)","Øl (flaske/dåse)","Vin (glas)","Cocktail","Spiritus (single/2cl)","Shot","Sodavand etc.","Andre"];
 
 function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   const toast = useToast();
@@ -139,20 +139,20 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
 
       {showNew && !selected && (
         <div className="mt-3 p-4 bg-surface-2 rounded-xl border border-surface-3">
-          <p className="text-xs font-medium text-ink-2 mb-3">Adding new venue</p>
+          <p className="text-xs font-medium text-ink-2 mb-3">Tilføj ny lokation</p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Venue name *</label>
-              <input value={nvName} onChange={e => setNvName(e.target.value)} placeholder="e.g. Under Masken" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Navn *</label>
+              <input value={nvName} onChange={e => setNvName(e.target.value)} placeholder="f.eks. Panenka" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Neighbourhood / address</label>
-              <input value={nvLocation} onChange={e => setNvLocation(e.target.value)} placeholder="e.g. Latin Quarter" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Nabolag / adresse</label>
+              <input value={nvLocation} onChange={e => setNvLocation(e.target.value)} placeholder="f.eks. Latiner Kvarteret" />
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="btn-primary text-xs px-4 py-2" onClick={createVenue}><Check size={13} /> Save venue</button>
-            <button className="btn-ghost text-xs px-4 py-2" onClick={() => { setShowNew(false); setQuery(""); }}>Cancel</button>
+            <button className="btn-primary text-xs px-4 py-2" onClick={createVenue}><Check size={13} /> Gem</button>
+            <button className="btn-ghost text-xs px-4 py-2" onClick={() => { setShowNew(false); setQuery(""); }}>Annuller</button>
           </div>
         </div>
       )}
@@ -177,11 +177,11 @@ function AddForm() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="text-5xl mb-4">🍺</div>
-        <h3 className="font-serif text-xl font-bold text-ink mb-2">Sign in to contribute</h3>
-        <p className="text-sm text-ink-3 mb-6 max-w-xs">You need an account to add drink prices. It's free and takes 30 seconds.</p>
+        <h3 className="font-serif text-xl font-bold text-ink mb-2">Log ind for at tilføje</h3>
+        <p className="text-sm text-ink-3 mb-6 max-w-xs">Du skal bruge en konto for at registrerer. Det er gratis og tager 30 sekunder.</p>
         <div className="flex gap-3">
-          <Link href="/login" className="btn-primary"><LogIn size={15} /> Sign in</Link>
-          <Link href="/register" className="btn-ghost">Create account</Link>
+          <Link href="/login" className="btn-primary"><LogIn size={15} /> Log ind</Link>
+          <Link href="/register" className="btn-ghost">Opret konto</Link>
         </div>
       </div>
     );
@@ -225,41 +225,41 @@ function AddForm() {
   return (
     <div className="max-w-2xl">
       <div className="mb-7">
-        <div className="section-label">Step 1 — Venue</div>
+        <div className="section-label">Step 1 — Lokation</div>
         <div className="card">
           <VenueSearch onSelect={setSelectedVenue} />
         </div>
       </div>
 
       <div className="mb-7">
-        <div className="section-label">Step 2 — Drink & price</div>
+        <div className="section-label">Step 2 — Drink & pris</div>
         <div className="card">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Drink name *</label>
-              <input value={drink} onChange={e => setDrink(e.target.value)} placeholder="e.g. Carlsberg 50cl, Negroni" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Drink navn *</label>
+              <input value={drink} onChange={e => setDrink(e.target.value)} placeholder="f.eks. Carlsberg 50cl, Negroni" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Category</label>
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Kategori</label>
               <select value={category} onChange={e => setCategory(e.target.value)}>
-                <option value="">— select —</option>
+                <option value="">— vælg —</option>
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Price (DKK) *</label>
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Pris (DKK) *</label>
               <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="65" min="0" step="5" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Notes (size, happy hour…)</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. 50cl, happy hour before 18:00" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Note (størrelse, happy hour…)</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="f.eks. 50cl, happy hour før 18:00" />
             </div>
           </div>
         </div>
       </div>
 
       <div className="mb-8">
-        <div className="section-label">Step 3 — Photo (optional)</div>
+        <div className="section-label">Step 3 — Photo (valgfrit)</div>
         <div className="card">
           {photoUrl
             ? <div className="relative">
@@ -268,7 +268,7 @@ function AddForm() {
               </div>
             : <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-surface-3 rounded-xl p-8 cursor-pointer hover:border-brand hover:bg-brand-light transition-all">
                 <Camera size={28} className="text-brand" />
-                <span className="text-sm text-ink-3">Tap to attach a photo of your drink or the menu</span>
+                <span className="text-sm text-ink-3">Tryk for at vedhæfte et billede af din drink eller menuen</span>
                 <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} />
               </label>
           }
@@ -286,8 +286,8 @@ export default function AddPage() {
   return (
     <ToastProvider>
       <div className="border-b border-surface-3 px-10 py-7">
-        <h2 className="font-serif text-3xl font-bold text-ink">Log a drink</h2>
-        <p className="text-sm text-ink-3 mt-1">Select a venue and enter what you paid</p>
+        <h2 className="font-serif text-3xl font-bold text-ink">Log en drink</h2>
+        <p className="text-sm text-ink-3 mt-1">Vælg en lokation og indtast hvad du har betalt</p>
       </div>
       <div className="px-10 py-8"><AddForm /></div>
     </ToastProvider>
