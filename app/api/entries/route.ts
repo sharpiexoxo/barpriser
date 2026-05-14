@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getDb, initDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,16 +15,24 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category");
     const limit    = parseInt(searchParams.get("limit")  || "100");
     const offset   = parseInt(searchParams.get("offset") || "0");
+
     const conditions: string[] = [];
     const args: (string | number)[] = [];
     if (venueId)  { conditions.push("e.venue_id = ?"); args.push(venueId); }
     if (category) { conditions.push("e.category = ?"); args.push(category); }
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
     const db = getDb();
+    await initDb();
     const result = await db.execute({
-      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location
-            FROM entries e JOIN venues v ON v.id = e.venue_id
-            ${where} ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
+      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location,
+                   u.name as user_name,
+                   (SELECT COUNT(*) FROM reports r WHERE r.entry_id = e.id AND r.resolved = 0) as report_count
+            FROM entries e
+            JOIN venues v ON v.id = e.venue_id
+            LEFT JOIN users u ON u.id = e.user_id
+            ${where}
+            ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
       args: [...args, limit, offset],
     });
     return NextResponse.json(result.rows.map((r) => ({ ...r })));
@@ -33,6 +43,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
     const formData = await req.formData();
     const venueId  = formData.get("venue_id") as string;
     const drink    = (formData.get("drink") as string)?.trim();
@@ -40,13 +53,21 @@ export async function POST(req: NextRequest) {
     const priceRaw = formData.get("price_dkk") as string;
     const notes    = (formData.get("notes") as string)?.trim();
     const photo    = formData.get("photo") as File | null;
+
     if (!venueId) return NextResponse.json({ error: "venue_id required" }, { status: 400 });
     if (!drink)   return NextResponse.json({ error: "drink required" }, { status: 400 });
     const price = parseFloat(priceRaw);
     if (isNaN(price)) return NextResponse.json({ error: "valid price_dkk required" }, { status: 400 });
+
     const db = getDb();
+    await initDb();
+
     const venueCheck = await db.execute({ sql: "SELECT id FROM venues WHERE id = ?", args: [venueId] });
-    if (venueCheck.rows.length === 0) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+    if (venueCheck.rows.length === 0)
+      return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+
+    const userId = (session.user as { id?: string }).id ?? null;
+
     let photoPath: string | null = null;
     if (photo && ALLOWED.has(photo.type)) {
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -61,13 +82,15 @@ export async function POST(req: NextRequest) {
         } catch {}
       }
     }
+
     const result = await db.execute({
-      sql: "INSERT INTO entries (venue_id, drink, category, price_dkk, notes, photo_path) VALUES (?,?,?,?,?,?)",
-      args: [venueId, drink, category || null, price, notes || null, photoPath],
+      sql: "INSERT INTO entries (venue_id, user_id, drink, category, price_dkk, notes, photo_path) VALUES (?,?,?,?,?,?,?)",
+      args: [venueId, userId, drink, category || null, price, notes || null, photoPath],
     });
     const entry = await db.execute({
-      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location
-            FROM entries e JOIN venues v ON v.id = e.venue_id WHERE e.id = ?`,
+      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, u.name as user_name
+            FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id
+            WHERE e.id = ?`,
       args: [result.lastInsertRowid!],
     });
     return NextResponse.json({ ...entry.rows[0] }, { status: 201 });

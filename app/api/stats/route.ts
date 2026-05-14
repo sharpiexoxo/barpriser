@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, initDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -7,11 +7,11 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const db = getDb();
+    await initDb();
     const summary = await db.execute(`
       SELECT COUNT(*) as total_entries, COUNT(DISTINCT venue_id) as total_venues,
              ROUND(AVG(price_dkk)) as overall_avg, ROUND(MIN(price_dkk)) as overall_min,
-             ROUND(MAX(price_dkk)) as overall_max
-      FROM entries
+             ROUND(MAX(price_dkk)) as overall_max FROM entries
     `);
     const byCategory = await db.execute(`
       SELECT category, COUNT(*) as count, ROUND(AVG(price_dkk)) as avg_price
@@ -31,7 +31,6 @@ export async function GET() {
       by_venue: byVenue.rows.map((r) => ({ ...r })),
     });
   } catch (e) {
-    console.error("Stats error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
