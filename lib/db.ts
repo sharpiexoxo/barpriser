@@ -4,14 +4,9 @@ let _client: Client | null = null;
 
 export function getDb(): Client {
   if (_client) return _client;
-
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!url) {
-    throw new Error("TURSO_DATABASE_URL is not set.");
-  }
-
+  if (!url) throw new Error("TURSO_DATABASE_URL is not set.");
   _client = createClient({ url, authToken });
   return _client;
 }
@@ -21,31 +16,27 @@ let _initialized = false;
 export async function initDb(): Promise<void> {
   if (_initialized) return;
   const db = getDb();
-  await db.batch([
-    `CREATE TABLE IF NOT EXISTS venues (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      name       TEXT NOT NULL,
-      location   TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS entries (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      venue_id   INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
-      drink      TEXT NOT NULL,
-      category   TEXT,
-      price_dkk  REAL NOT NULL,
-      notes      TEXT,
-      photo_path TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_entries_venue   ON entries(venue_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_entries_created ON entries(created_at DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_entries_cat     ON entries(category)`,
-  ], "write");
+  await db.execute(`CREATE TABLE IF NOT EXISTS venues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    location TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  await db.execute(`CREATE TABLE IF NOT EXISTS entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    drink TEXT NOT NULL,
+    category TEXT,
+    price_dkk REAL NOT NULL,
+    notes TEXT,
+    photo_path TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_venue ON entries(venue_id)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_created ON entries(created_at DESC)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_cat ON entries(category)`);
   _initialized = true;
 }
-
-// ── Types ──────────────────────────────────────────────────────────────────
 
 export interface Venue {
   id: number;
