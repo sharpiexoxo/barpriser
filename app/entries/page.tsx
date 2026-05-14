@@ -110,9 +110,9 @@ function Feed() {
       </div>
 
       {loading
-        ? <div className="text-center py-16 text-ink-3 text-sm">Loading entries…</div>
+        ? <div className="text-center py-16 text-ink-3 text-sm">Loader registreringer…</div>
         : entries.length === 0
-        ? <div className="text-center py-16 text-ink-3"><div className="text-4xl mb-3 opacity-30">🍺</div><p className="text-sm">No entries yet</p></div>
+        ? <div className="text-center py-16 text-ink-3"><div className="text-4xl mb-3 opacity-30">🍺</div><p className="text-sm">Ingen registreringer fundet</p></div>
         : <div className="flex flex-col gap-3">
             {entries.map(e => (
               <EntryCard key={e.id} entry={e}
@@ -134,7 +134,7 @@ function Feed() {
 
       {!session && entries.length > 0 && (
         <p className="text-center text-sm text-ink-3 mt-6">
-          <a href="/login" className="text-brand font-medium hover:underline">Sign in</a> to report entries
+          <a href="/login" className="text-brand font-medium hover:underline">Log ind</a> for at registrerer
         </p>
       )}
     </div>
@@ -145,8 +145,8 @@ export default function EntriesPage() {
   return (
     <ToastProvider>
       <div className="border-b border-surface-3 px-10 py-7">
-        <h2 className="font-serif text-3xl font-bold text-ink">All entries</h2>
-        <p className="text-sm text-ink-3 mt-1">Community-logged drink prices across Aarhus</p>
+        <h2 className="font-serif text-3xl font-bold text-ink">Alle registreringer</h2>
+        <p className="text-sm text-ink-3 mt-1">Community-registreret priser i Aarhus</p>
       </div>
       <div className="px-10 py-8"><Feed /></div>
     </ToastProvider>

@@ -26,7 +26,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="font-serif text-4xl font-black text-ink">Bar<span className="text-brand">Priser</span></h1>
-          <p className="text-sm text-ink-3 mt-1">Sign in to log drink prices</p>
+          <p className="text-sm text-ink-3 mt-1">Log ind for at registrere</p>
         </div>
         <div className="card">
           <form onSubmit={submit} className="flex flex-col gap-4">
@@ -45,8 +45,8 @@ export default function LoginPage() {
           </form>
         </div>
         <p className="text-center text-sm text-ink-3 mt-4">
-          No account?{" "}
-          <Link href="/register" className="text-brand font-medium hover:underline">Register here</Link>
+          Ingen konto?{" "}
+          <Link href="/register" className="text-brand font-medium hover:underline">Registrer her</Link>
         </p>
       </div>
     </div>

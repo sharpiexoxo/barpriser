@@ -29,18 +29,18 @@ export default function OverviewPage() {
 
   if (loading) {
     return (
-      <div className="px-10 py-8 text-ink-3 text-sm text-center pt-20">Loading overview…</div>
+      <div className="px-10 py-8 text-ink-3 text-sm text-center pt-20">Indlæser oversigt…</div>
     );
   }
   if (!stats || stats.total_entries === 0) {
     return (
       <>
         <div className="border-b border-surface-3 px-10 py-7">
-          <h2 className="font-serif text-3xl font-bold text-ink">Overview</h2>
+          <h2 className="font-serif text-3xl font-bold text-ink">Oversigt</h2>
         </div>
         <div className="text-center py-20 text-ink-3">
           <div className="text-5xl mb-3 opacity-20">📊</div>
-          <p className="text-sm">Add entries to see the overview</p>
+          <p className="text-sm">Tilføj registreringer for at se oversigten</p>
         </div>
       </>
     );
@@ -51,8 +51,8 @@ export default function OverviewPage() {
   return (
     <>
       <div className="border-b border-surface-3 px-10 py-7">
-        <h2 className="font-serif text-3xl font-bold text-ink">Overview</h2>
-        <p className="text-sm text-ink-3 mt-1">Price research across Aarhus bars</p>
+        <h2 className="font-serif text-3xl font-bold text-ink">Oversigt</h2>
+        <p className="text-sm text-ink-3 mt-1">Prisforskning på Aarhus forskellige bar</p>
       </div>
 
       <div className="px-10 py-8 space-y-10">
@@ -76,7 +76,7 @@ export default function OverviewPage() {
 
         {/* Bar chart */}
         <div>
-          <div className="section-label mb-4">Average price per venue</div>
+          <div className="section-label mb-4">Gennemsnitlig pris pr. bar</div>
           <div className="flex flex-col gap-2">
             {stats.by_venue.map((v) => (
               <div key={v.id} className="flex items-center gap-3">
@@ -101,7 +101,7 @@ export default function OverviewPage() {
         {/* Category grid */}
         {stats.by_category.length > 0 && (
           <div>
-            <div className="section-label mb-4">By category</div>
+            <div className="section-label mb-4">Kategori</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {stats.by_category.map((c) => (
                 <div key={c.category} className="card">
@@ -123,7 +123,7 @@ export default function OverviewPage() {
 
         {/* Venue breakdown */}
         <div>
-          <div className="section-label mb-4">Venue breakdown</div>
+          <div className="section-label mb-4">Lokations breakdown</div>
           <div className="flex flex-col gap-4">
             {stats.by_venue.map((v) => (
               <VenueCard key={v.id} venue={v} />
@@ -161,11 +161,11 @@ function VenueCard({ venue }: { venue: Stats["by_venue"][0] }) {
         <div className="flex gap-5 text-right">
           <div>
             <div className="font-mono text-base font-medium text-brand">{Math.round(venue.avg_price)} kr</div>
-            <div className="text-[10px] font-mono uppercase text-ink-3 tracking-wide">avg</div>
+            <div className="text-[10px] font-mono uppercase text-ink-3 tracking-wide">gennemsnit</div>
           </div>
           <div>
             <div className="font-mono text-base font-medium text-ink">{venue.count}</div>
-            <div className="text-[10px] font-mono uppercase text-ink-3 tracking-wide">entries</div>
+            <div className="text-[10px] font-mono uppercase text-ink-3 tracking-wide">registreringer</div>
           </div>
         </div>
       </div>
@@ -186,7 +186,7 @@ function VenueCard({ venue }: { venue: Stats["by_venue"][0] }) {
           </tbody>
         </table>
       ) : (
-        <div className="px-5 py-4 text-[13px] text-ink-3">No entries yet</div>
+        <div className="px-5 py-4 text-[13px] text-ink-3">Ingen registreringer endnu</div>
       )}
     </div>
   );
