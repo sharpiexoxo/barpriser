@@ -3,20 +3,22 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, X, Plus, Check, LogIn, Search, MapPin } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast, ToastProvider } from "@/components/Toast";
+import { useLocale } from "@/components/LocaleProvider";
+import { CITIES } from "@/lib/cities";
 import type { Venue } from "@/lib/db";
 import clsx from "clsx";
 import Link from "next/link";
 
-const CATEGORIES = ["Øl (fad)","Øl (flaske/dåse)","Vin (glas)","Cocktail","Spiritus (single/2cl)","Shot","Sodavand etc.","Andre"];
-
 function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   const toast = useToast();
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Venue[]>([]);
   const [all, setAll] = useState<Venue[]>([]);
   const [selected, setSelected] = useState<Venue | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [nvName, setNvName] = useState("");
+  const [nvCity, setNvCity] = useState("");
   const [nvLocation, setNvLocation] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -28,42 +30,35 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   useEffect(() => {
     if (!query.trim()) { setResults([]); return; }
     const q = query.toLowerCase();
-    setResults(all.filter(v => v.name.toLowerCase().includes(q) || (v.location ?? "").toLowerCase().includes(q)).slice(0, 8));
+    setResults(all.filter(v =>
+      v.name.toLowerCase().includes(q) ||
+      (v.location ?? "").toLowerCase().includes(q) ||
+      (v.city ?? "").toLowerCase().includes(q)
+    ).slice(0, 8));
   }, [query, all]);
 
-  function pick(v: Venue) {
-    setSelected(v);
-    setQuery(v.name);
-    setOpen(false);
-    setShowNew(false);
-    onSelect(v);
-  }
-
-  function clear() {
-    setSelected(null);
-    setQuery("");
-    setResults([]);
-    setShowNew(false);
-    setOpen(false);
-  }
+  function pick(v: Venue) { setSelected(v); setQuery(v.name); setOpen(false); setShowNew(false); onSelect(v); }
+  function clear() { setSelected(null); setQuery(""); setResults([]); setShowNew(false); setOpen(false); }
 
   async function createVenue() {
-    if (!nvName.trim()) { toast("Enter a venue name", "error"); return; }
+    if (!nvName.trim()) { toast(t("toast_fail_venue"), "error"); return; }
+    if (!nvCity)        { toast(t("toast_fail_city"),  "error"); return; }
     const res = await fetch("/api/venues", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: nvName.trim(), location: nvLocation.trim() }),
+      body: JSON.stringify({ name: nvName.trim(), city: nvCity, location: nvLocation.trim() }),
     });
     if (!res.ok) { const d = await res.json(); toast(d.error, "error"); return; }
     const v: Venue = await res.json();
     const updated = await fetch("/api/venues").then(r => r.json());
     if (Array.isArray(updated)) setAll(updated);
-    setNvName(""); setNvLocation(""); setShowNew(false);
+    setNvName(""); setNvCity(""); setNvLocation(""); setShowNew(false);
     pick(v);
-    toast(`"${v.name}" added ✓`);
+    toast(t("toast_venue_added"));
   }
 
   const noResults = query.trim().length > 0 && results.length === 0 && !selected;
+  const cityLabel = selected ? CITIES.find(c => c.value === selected.city)?.label ?? selected.city : "";
 
   return (
     <div className="relative">
@@ -72,12 +67,10 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
         selected ? "border-brand bg-brand-light/30" : "border-surface-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10"
       )}>
         {selected ? <MapPin size={15} className="text-brand shrink-0" /> : <Search size={15} className="text-ink-3 shrink-0" />}
-        <input
-          ref={inputRef}
-          value={query}
+        <input ref={inputRef} value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); if (selected) setSelected(null); }}
           onFocus={() => setOpen(true)}
-          placeholder="Search for a bar or venue…"
+          placeholder={t("add_search")}
           className="flex-1 bg-transparent border-0 outline-none ring-0 text-sm text-ink p-0 focus:ring-0"
           style={{ boxShadow: "none" }}
         />
@@ -88,8 +81,8 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
         <div className="mt-2 flex items-center gap-2 text-sm text-brand-dark font-medium">
           <Check size={14} className="text-brand" />
           <span>{selected.name}</span>
-          {selected.location && <span className="text-ink-3 font-normal text-xs">· {selected.location}</span>}
-          <button onClick={clear} className="ml-auto text-xs text-ink-3 hover:text-brand underline">Change</button>
+          <span className="text-ink-3 font-normal text-xs">· {cityLabel}{selected.location ? `, ${selected.location}` : ""}</span>
+          <button onClick={clear} className="ml-auto text-xs text-ink-3 hover:text-brand underline">{t("add_change")}</button>
         </div>
       )}
 
@@ -97,41 +90,38 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
         <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-surface border border-surface-3 rounded-xl shadow-xl overflow-hidden">
           {results.length > 0 && (
             <ul>
-              {results.map(v => (
-                <li key={v.id}>
-                  <button
-                    onMouseDown={() => pick(v)}
-                    className="w-full text-left px-4 py-3 hover:bg-surface-2 transition-colors flex items-center gap-3 border-b border-surface-3 last:border-0"
-                  >
-                    <MapPin size={13} className="text-brand shrink-0" />
-                    <div>
-                      <div className="text-sm font-medium text-ink">{v.name}</div>
-                      {v.location && <div className="text-xs text-ink-3">{v.location}</div>}
-                    </div>
-                    <div className="ml-auto font-mono text-[10px] text-ink-3">{v.entry_count ?? 0} entries</div>
-                  </button>
-                </li>
-              ))}
+              {results.map(v => {
+                const city = CITIES.find(c => c.value === v.city)?.label ?? v.city;
+                return (
+                  <li key={v.id}>
+                    <button onMouseDown={() => pick(v)}
+                      className="w-full text-left px-4 py-3 hover:bg-surface-2 transition-colors flex items-center gap-3 border-b border-surface-3 last:border-0">
+                      <MapPin size={13} className="text-brand shrink-0" />
+                      <div>
+                        <div className="text-sm font-medium text-ink">{v.name}</div>
+                        <div className="text-xs text-ink-3">{city}{v.location ? ` · ${v.location}` : ""}</div>
+                      </div>
+                      <div className="ml-auto font-mono text-[10px] text-ink-3 shrink-0">{v.entry_count ?? 0} {t("add_entries")}</div>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
-
           {noResults && !showNew && (
             <div className="px-4 py-4">
               <p className="text-sm text-ink-3 mb-3">
-                No venue found matching <span className="font-medium text-ink">"{query}"</span>
+                {t("add_no_results")} <span className="font-medium text-ink">"{query}"</span>
               </p>
-              <button
-                onMouseDown={() => { setShowNew(true); setNvName(query); setOpen(false); }}
-                className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5"
-              >
-                <Plus size={13} /> Add "{query}" as new venue
+              <button onMouseDown={() => { setShowNew(true); setNvName(query); setOpen(false); }}
+                className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5">
+                <Plus size={13} /> {t("add_add_venue")} "{query}"
               </button>
             </div>
           )}
-
           {query.trim() === "" && (
             <div className="px-4 py-3 text-xs text-ink-3">
-              Start typing to search {all.length} venues…
+              {t("add_search_hint")} — {all.length} {t("add_entries")}
             </div>
           )}
         </div>
@@ -139,20 +129,27 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
 
       {showNew && !selected && (
         <div className="mt-3 p-4 bg-surface-2 rounded-xl border border-surface-3">
-          <p className="text-xs font-medium text-ink-2 mb-3">Tilføj ny lokation</p>
+          <p className="text-xs font-medium text-ink-2 mb-3">{t("add_new_venue")}</p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Navn *</label>
-              <input value={nvName} onChange={e => setNvName(e.target.value)} placeholder="f.eks. Panenka" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_name")}</label>
+              <input value={nvName} onChange={e => setNvName(e.target.value)} placeholder={t("add_venue_ph")} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Nabolag / adresse</label>
-              <input value={nvLocation} onChange={e => setNvLocation(e.target.value)} placeholder="f.eks. Latiner Kvarteret" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_city")}</label>
+              <select value={nvCity} onChange={e => setNvCity(e.target.value)}>
+                <option value="">{t("add_venue_city_select")}</option>
+                {CITIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_loc")}</label>
+              <input value={nvLocation} onChange={e => setNvLocation(e.target.value)} placeholder={t("add_venue_loc_ph")} />
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="btn-primary text-xs px-4 py-2" onClick={createVenue}><Check size={13} /> Gem</button>
-            <button className="btn-ghost text-xs px-4 py-2" onClick={() => { setShowNew(false); setQuery(""); }}>Annuller</button>
+            <button className="btn-primary text-xs px-4 py-2" onClick={createVenue}><Check size={13} /> {t("add_save_venue")}</button>
+            <button className="btn-ghost text-xs px-4 py-2" onClick={() => { setShowNew(false); setQuery(""); }}>{t("add_cancel")}</button>
           </div>
         </div>
       )}
@@ -162,6 +159,7 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
 
 function AddForm() {
   const toast = useToast();
+  const { t } = useLocale();
   const { status } = useSession();
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [drink, setDrink] = useState("");
@@ -173,36 +171,31 @@ function AddForm() {
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  if (status === "unauthenticated") {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="text-5xl mb-4">🍺</div>
-        <h3 className="font-serif text-xl font-bold text-ink mb-2">Log ind for at tilføje</h3>
-        <p className="text-sm text-ink-3 mb-6 max-w-xs">Du skal bruge en konto for at registrerer. Det er gratis og tager 30 sekunder.</p>
-        <div className="flex gap-3">
-          <Link href="/login" className="btn-primary"><LogIn size={15} /> Log ind</Link>
-          <Link href="/register" className="btn-ghost">Opret konto</Link>
-        </div>
+  if (status === "unauthenticated") return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="text-5xl mb-4">🍺</div>
+      <h3 className="font-serif text-xl font-bold text-ink mb-2">{t("add_signin_title")}</h3>
+      <p className="text-sm text-ink-3 mb-6 max-w-xs">{t("add_signin_desc")}</p>
+      <div className="flex gap-3">
+        <Link href="/login" className="btn-primary"><LogIn size={15} />{t("add_signin_btn")}</Link>
+        <Link href="/register" className="btn-ghost">{t("add_register_btn")}</Link>
       </div>
-    );
-  }
-  if (status === "loading") return <div className="py-20 text-center text-ink-3 text-sm">Loading…</div>;
+    </div>
+  );
+  if (status === "loading") return <div className="py-20 text-center text-ink-3 text-sm">{t("add_loading")}</div>;
+
+  const CATEGORIES = [t("cat_beer_draft"),t("cat_beer_bottle"),t("cat_wine"),t("cat_cocktail"),t("cat_spirit"),t("cat_shot"),t("cat_soft"),t("cat_other")];
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoFile(file);
-    setPhotoUrl(URL.createObjectURL(file));
+    const file = e.target.files?.[0]; if (!file) return;
+    setPhotoFile(file); setPhotoUrl(URL.createObjectURL(file));
   }
-  function removePhoto() {
-    setPhotoFile(null); setPhotoUrl(null);
-    if (fileRef.current) fileRef.current.value = "";
-  }
+  function removePhoto() { setPhotoFile(null); setPhotoUrl(null); if (fileRef.current) fileRef.current.value = ""; }
 
   async function submit() {
-    if (!selectedVenue) { toast("Select a venue", "error"); return; }
-    if (!drink.trim())  { toast("Enter the drink name", "error"); return; }
-    if (!price || isNaN(+price)) { toast("Enter a valid price", "error"); return; }
+    if (!selectedVenue)          { toast(t("toast_fail_venue_sel"), "error"); return; }
+    if (!drink.trim())           { toast(t("toast_fail_drink"), "error"); return; }
+    if (!price || isNaN(+price)) { toast(t("toast_fail_price"), "error"); return; }
     setSubmitting(true);
     try {
       const fd = new FormData();
@@ -214,52 +207,47 @@ function AddForm() {
       if (photoFile) fd.append("photo", photoFile);
       const res = await fetch("/api/entries", { method: "POST", body: fd });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      setDrink(""); setCategory(""); setPrice(""); setNotes("");
-      removePhoto();
-      toast("Entry saved! 🍺");
+      setDrink(""); setCategory(""); setPrice(""); setNotes(""); removePhoto();
+      toast(t("toast_entry_saved"));
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : "Failed to save", "error");
+      toast(e instanceof Error ? e.message : t("toast_fail_save"), "error");
     } finally { setSubmitting(false); }
   }
 
   return (
     <div className="max-w-2xl">
       <div className="mb-7">
-        <div className="section-label">Step 1 — Lokation</div>
-        <div className="card">
-          <VenueSearch onSelect={setSelectedVenue} />
-        </div>
+        <div className="section-label">{t("add_step1")}</div>
+        <div className="card"><VenueSearch onSelect={setSelectedVenue} /></div>
       </div>
-
       <div className="mb-7">
-        <div className="section-label">Step 2 — Drink & pris</div>
+        <div className="section-label">{t("add_step2")}</div>
         <div className="card">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Drink navn *</label>
-              <input value={drink} onChange={e => setDrink(e.target.value)} placeholder="f.eks. Carlsberg 50cl, Negroni" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_drink")}</label>
+              <input value={drink} onChange={e => setDrink(e.target.value)} placeholder={t("add_drink_ph")} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Kategori</label>
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_category")}</label>
               <select value={category} onChange={e => setCategory(e.target.value)}>
-                <option value="">— vælg —</option>
+                <option value="">{t("add_cat_select")}</option>
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Pris (DKK) *</label>
-              <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="65" min="0" step="5" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_price")}</label>
+              <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder={t("add_price_ph")} min="0" step="5" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Note (størrelse, happy hour…)</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="f.eks. 50cl, happy hour før 18:00" />
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_notes")}</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("add_notes_ph")} />
             </div>
           </div>
         </div>
       </div>
-
       <div className="mb-8">
-        <div className="section-label">Step 3 — Photo (valgfrit)</div>
+        <div className="section-label">{t("add_step3")}</div>
         <div className="card">
           {photoUrl
             ? <div className="relative">
@@ -268,26 +256,26 @@ function AddForm() {
               </div>
             : <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-surface-3 rounded-xl p-8 cursor-pointer hover:border-brand hover:bg-brand-light transition-all">
                 <Camera size={28} className="text-brand" />
-                <span className="text-sm text-ink-3">Tryk for at vedhæfte et billede af din drink eller menuen</span>
+                <span className="text-sm text-ink-3">{t("add_photo_hint")}</span>
                 <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} />
               </label>
           }
         </div>
       </div>
-
       <button onClick={submit} disabled={submitting} className="btn-primary w-full py-4 text-base justify-center disabled:opacity-60">
-        <Check size={16} />{submitting ? "Saving…" : "Save entry"}
+        <Check size={16} />{submitting ? t("add_saving") : t("add_save")}
       </button>
     </div>
   );
 }
 
 export default function AddPage() {
+  const { t } = useLocale();
   return (
     <ToastProvider>
       <div className="border-b border-surface-3 px-10 py-7">
-        <h2 className="font-serif text-3xl font-bold text-ink">Log en drink</h2>
-        <p className="text-sm text-ink-3 mt-1">Vælg en lokation og indtast hvad du har betalt</p>
+        <h2 className="font-serif text-3xl font-bold text-ink">{t("add_title")}</h2>
+        <p className="text-sm text-ink-3 mt-1">{t("add_subtitle")}</p>
       </div>
       <div className="px-10 py-8"><AddForm /></div>
     </ToastProvider>

@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const venueId  = searchParams.get("venue_id");
     const category = searchParams.get("category");
+    const city     = searchParams.get("city");
     const limit    = parseInt(searchParams.get("limit")  || "100");
     const offset   = parseInt(searchParams.get("offset") || "0");
 
@@ -20,12 +21,13 @@ export async function GET(req: NextRequest) {
     const args: (string | number)[] = [];
     if (venueId)  { conditions.push("e.venue_id = ?"); args.push(venueId); }
     if (category) { conditions.push("e.category = ?"); args.push(category); }
+    if (city)     { conditions.push("v.city = ?");     args.push(city); }
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const db = getDb();
     await initDb();
     const result = await db.execute({
-      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location,
+      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city,
                    u.name as user_name,
                    (SELECT COUNT(*) FROM reports r WHERE r.entry_id = e.id AND r.resolved = 0) as report_count
             FROM entries e
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
             ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
       args: [...args, limit, offset],
     });
-    return NextResponse.json(result.rows.map((r) => ({ ...r })));
+    return NextResponse.json(result.rows.map(r => ({ ...r })));
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -63,8 +65,7 @@ export async function POST(req: NextRequest) {
     await initDb();
 
     const venueCheck = await db.execute({ sql: "SELECT id FROM venues WHERE id = ?", args: [venueId] });
-    if (venueCheck.rows.length === 0)
-      return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+    if (venueCheck.rows.length === 0) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
 
     const userId = (session.user as { id?: string }).id ?? null;
 
@@ -88,7 +89,8 @@ export async function POST(req: NextRequest) {
       args: [venueId, userId, drink, category || null, price, notes || null, photoPath],
     });
     const entry = await db.execute({
-      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, u.name as user_name
+      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city,
+                   u.name as user_name
             FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id
             WHERE e.id = ?`,
       args: [result.lastInsertRowid!],
