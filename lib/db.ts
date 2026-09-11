@@ -18,56 +18,62 @@ export async function initDb(): Promise<void> {
   const db = getDb();
 
   await db.execute(`CREATE TABLE IF NOT EXISTS users (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    email      TEXT NOT NULL UNIQUE,
-    name       TEXT NOT NULL,
-    password   TEXT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    password TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS venues (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT NOT NULL,
-    city       TEXT NOT NULL DEFAULT 'aarhus',
-    location   TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    city TEXT NOT NULL DEFAULT 'aarhus',
+    location TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  // Auto-migrate: add city column if missing (for existing databases)
+  try {
+    await db.execute(`ALTER TABLE venues ADD COLUMN city TEXT NOT NULL DEFAULT 'aarhus'`);
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
   await db.execute(`CREATE TABLE IF NOT EXISTS entries (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    venue_id   INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
-    user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    drink      TEXT NOT NULL,
-    category   TEXT,
-    price_dkk  REAL NOT NULL,
-    notes      TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    drink TEXT NOT NULL,
+    category TEXT,
+    price_dkk REAL NOT NULL,
+    notes TEXT,
     photo_path TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS reports (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    entry_id   INTEGER NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
-    user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    reason     TEXT NOT NULL,
-    details    TEXT,
-    resolved   INTEGER DEFAULT 0,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id INTEGER NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reason TEXT NOT NULL,
+    details TEXT,
+    resolved INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS password_resets (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token      TEXT NOT NULL UNIQUE,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
     expires_at TEXT NOT NULL,
-    used       INTEGER DEFAULT 0,
+    used INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_venue   ON entries(venue_id)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_created ON entries(created_at DESC)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_cat     ON entries(category)`);
-  await db.execute(`CREATE INDEX IF NOT EXISTS idx_venues_city     ON venues(city)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_reports_entry   ON reports(entry_id)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_resets_token    ON password_resets(token)`);
 
@@ -89,6 +95,8 @@ export interface Stats {
   total_entries: number; total_venues: number;
   overall_avg: number | null; overall_min: number | null; overall_max: number | null;
   by_category: { category: string; count: number; avg_price: number }[];
-  by_venue: { id: number; name: string; city: string; location: string | null; count: number;
-    avg_price: number; min_price: number; max_price: number }[];
+  by_venue: {
+    id: number; name: string; city: string; location: string | null;
+    count: number; avg_price: number; min_price: number; max_price: number;
+  }[];
 }

@@ -10,10 +10,42 @@ import type { Entry } from "@/lib/db";
 import clsx from "clsx";
 
 function formatDate(iso: string) {
-  return new Date(iso + "Z").toLocaleDateString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso + "Z").toLocaleDateString("da-DK", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
 }
 
-function EntryCard({ entry, onDelete, onReport }: { entry: Entry; onDelete: () => void; onReport: () => void }) {
+function CityPicker({ selected, onSelect }: { selected: string; onSelect: (c: string) => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="text-5xl mb-4">🏙️</div>
+      <h3 className="font-serif text-2xl font-bold text-ink mb-2">Vælg en by</h3>
+      <p className="text-sm text-ink-3 mb-8 max-w-xs">
+        Vælg den by du vil se drikkevarepriser fra
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center max-w-sm">
+        {CITIES.map(c => (
+          <button
+            key={c.value}
+            onClick={() => onSelect(c.value)}
+            className={clsx(
+              "px-6 py-3 rounded-xl border-2 text-sm font-medium transition-all",
+              selected === c.value
+                ? "border-brand bg-brand text-white"
+                : "border-surface-3 bg-surface hover:border-brand hover:text-brand text-ink-2"
+            )}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EntryCard({ entry, onDelete, onReport }: {
+  entry: Entry; onDelete: () => void; onReport: () => void;
+}) {
   const { data: session } = useSession();
   const { t } = useLocale();
   const [lightbox, setLightbox] = useState(false);
@@ -48,7 +80,11 @@ function EntryCard({ entry, onDelete, onReport }: { entry: Entry; onDelete: () =
           </div>
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-[11px] text-ink-3">{formatDate(entry.created_at)}</span>
-            {entry.user_name && <span className="flex items-center gap-1 text-[11px] text-ink-3"><User size={9} />{entry.user_name}</span>}
+            {entry.user_name && (
+              <span className="flex items-center gap-1 text-[11px] text-ink-3">
+                <User size={9} />{entry.user_name}
+              </span>
+            )}
           </div>
         </div>
         <div className="text-right shrink-0">
@@ -56,12 +92,12 @@ function EntryCard({ entry, onDelete, onReport }: { entry: Entry; onDelete: () =
           <div className="font-mono text-[10px] text-ink-3">DKK</div>
           <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
             {session && (
-              <button onClick={onReport} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg" title={t("entries_report")}>
+              <button onClick={onReport} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
                 <Flag size={13} />
               </button>
             )}
             {isOwner && (
-              <button onClick={onDelete} className="btn-danger p-1.5 rounded-lg" title={t("entries_delete")}>
+              <button onClick={onDelete} className="btn-danger p-1.5 rounded-lg">
                 <Trash2 size={13} />
               </button>
             )}
@@ -77,14 +113,13 @@ function EntryCard({ entry, onDelete, onReport }: { entry: Entry; onDelete: () =
   );
 }
 
-function Feed() {
+function Feed({ city }: { city: string }) {
   const toast = useToast();
   const { data: session } = useSession();
   const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("");
-  const [city, setCity] = useState("");
   const [reporting, setReporting] = useState<Entry | null>(null);
 
   const CATEGORIES = [
@@ -94,19 +129,17 @@ function Feed() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ city });
     if (category) params.set("category", category);
-    if (city)     params.set("city", city);
-    const qs = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`/api/entries${qs}`);
+    const res = await fetch(`/api/entries?${params.toString()}`);
     if (res.ok) setEntries(await res.json());
     setLoading(false);
-  }, [category, city]);
+  }, [city, category]);
 
   useEffect(() => { load(); }, [load]);
 
   async function del(id: number) {
-    if (!confirm("?")) return;
+    if (!confirm("Slet denne pris?")) return;
     const res = await fetch(`/api/entries/${id}`, { method: "DELETE" });
     if (res.ok) { setEntries(e => e.filter(x => x.id !== id)); toast(t("toast_entry_deleted")); }
     else toast(t("toast_fail_delete"), "error");
@@ -114,36 +147,22 @@ function Feed() {
 
   return (
     <div>
-      {/* City filter */}
-      <div className="flex flex-wrap gap-2 mb-4 items-center">
-        <span className="font-mono text-[10px] text-ink-3 uppercase tracking-widest">{t("entries_city_filter")}</span>
-        <button
-          onClick={() => setCity("")}
-          className={clsx("chip text-xs py-1", city === "" && "chip-active")}
-        >
-          {t("entries_all_cities")}
-        </button>
-        {CITIES.map(c => (
-          <button key={c.value} onClick={() => setCity(c.value)}
-            className={clsx("chip text-xs py-1", city === c.value && "chip-active")}>
-            {c.label}
-          </button>
-        ))}
-      </div>
-
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <span className="font-mono text-[10px] text-ink-3 uppercase tracking-widest">{t("entries_filter")}</span>
-        <button onClick={() => setCategory("")} className={clsx("chip text-xs py-1", category === "" && "chip-active")}>{t("entries_all")}</button>
+        <span className="font-mono text-[10px] text-ink-3 uppercase tracking-widest">Filtrér:</span>
+        <button onClick={() => setCategory("")} className={clsx("chip text-xs py-1", category === "" && "chip-active")}>Alle</button>
         {CATEGORIES.map(c => (
           <button key={c} onClick={() => setCategory(c)} className={clsx("chip text-xs py-1", category === c && "chip-active")}>{c}</button>
         ))}
       </div>
 
       {loading
-        ? <div className="text-center py-16 text-ink-3 text-sm">{t("entries_loading")}</div>
+        ? <div className="text-center py-16 text-ink-3 text-sm">Indlæser priser…</div>
         : entries.length === 0
-        ? <div className="text-center py-16 text-ink-3"><div className="text-4xl mb-3 opacity-30">🍺</div><p className="text-sm">{t("entries_empty")}</p></div>
+        ? <div className="text-center py-16 text-ink-3">
+            <div className="text-4xl mb-3 opacity-30">🍺</div>
+            <p className="text-sm">Ingen priser registreret endnu i denne by — tilføj én!</p>
+          </div>
         : <div className="flex flex-col gap-3">
             {entries.map(e => (
               <EntryCard key={e.id} entry={e} onDelete={() => del(e.id)} onReport={() => setReporting(e)} />
@@ -152,7 +171,9 @@ function Feed() {
       }
 
       {reporting && (
-        <ReportModal entryId={reporting.id} drinkName={reporting.drink}
+        <ReportModal
+          entryId={reporting.id}
+          drinkName={reporting.drink}
           onClose={() => setReporting(null)}
           onSuccess={() => { toast(t("toast_report_sent")); load(); }}
         />
@@ -160,7 +181,7 @@ function Feed() {
 
       {!session && entries.length > 0 && (
         <p className="text-center text-sm text-ink-3 mt-6">
-          <a href="/login" className="text-brand font-medium hover:underline">{t("nav_signin")}</a> — {t("entries_signin_report")}
+          <a href="/login" className="text-brand font-medium hover:underline">Log ind</a> for at rapportere priser
         </p>
       )}
     </div>
@@ -168,14 +189,32 @@ function Feed() {
 }
 
 export default function EntriesPage() {
-  const { t } = useLocale();
+  const [city, setCity] = useState("");
+  const cityLabel = CITIES.find(c => c.value === city)?.label ?? "";
+
   return (
     <ToastProvider>
-      <div className="border-b border-surface-3 px-10 py-7">
-        <h2 className="font-serif text-3xl font-bold text-ink">{t("entries_title")}</h2>
-        <p className="text-sm text-ink-3 mt-1">{t("entries_subtitle")}</p>
+      <div className="border-b border-surface-3 px-10 py-7 flex items-center justify-between">
+        <div>
+          <h2 className="font-serif text-3xl font-bold text-ink">
+            {city ? `Priser i ${cityLabel}` : "Alle priser"}
+          </h2>
+          <p className="text-sm text-ink-3 mt-1">
+            {city ? `Fællesregistrerede drikkevarepriser i ${cityLabel}` : "Vælg en by for at se priser"}
+          </p>
+        </div>
+        {city && (
+          <button onClick={() => setCity("")} className="btn-ghost text-sm">
+            Skift by
+          </button>
+        )}
       </div>
-      <div className="px-10 py-8"><Feed /></div>
+      <div className="px-10 py-8">
+        {!city
+          ? <CityPicker selected={city} onSelect={setCity} />
+          : <Feed city={city} />
+        }
+      </div>
     </ToastProvider>
   );
 }
