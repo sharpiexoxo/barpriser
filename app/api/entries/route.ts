@@ -6,7 +6,7 @@ import { getDb, initDb } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+const ALLOWED = new Set(["image/jpeg","image/png","image/gif","image/webp"]);
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,40 +14,30 @@ export async function GET(req: NextRequest) {
     const venueId  = searchParams.get("venue_id");
     const category = searchParams.get("category");
     const city     = searchParams.get("city");
-    const limit    = parseInt(searchParams.get("limit")  || "100");
+    const limit    = parseInt(searchParams.get("limit") || "100");
     const offset   = parseInt(searchParams.get("offset") || "0");
-
     const conditions: string[] = [];
     const args: (string | number)[] = [];
     if (venueId)  { conditions.push("e.venue_id = ?"); args.push(venueId); }
     if (category) { conditions.push("e.category = ?"); args.push(category); }
     if (city)     { conditions.push("v.city = ?");     args.push(city); }
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-    const db = getDb();
-    await initDb();
+    const db = getDb(); await initDb();
     const result = await db.execute({
-      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city,
-                   u.name as user_name,
+      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city, u.name as user_name,
                    (SELECT COUNT(*) FROM reports r WHERE r.entry_id = e.id AND r.resolved = 0) as report_count
-            FROM entries e
-            JOIN venues v ON v.id = e.venue_id
-            LEFT JOIN users u ON u.id = e.user_id
-            ${where}
-            ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
+            FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id
+            ${where} ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
       args: [...args, limit, offset],
     });
     return NextResponse.json(result.rows.map(r => ({ ...r })));
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+  } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+    if (!session) return NextResponse.json({ error: "Ikke logget ind" }, { status: 401 });
     const formData = await req.formData();
     const venueId  = formData.get("venue_id") as string;
     const drink    = (formData.get("drink") as string)?.trim();
@@ -55,20 +45,14 @@ export async function POST(req: NextRequest) {
     const priceRaw = formData.get("price_dkk") as string;
     const notes    = (formData.get("notes") as string)?.trim();
     const photo    = formData.get("photo") as File | null;
-
-    if (!venueId) return NextResponse.json({ error: "venue_id required" }, { status: 400 });
-    if (!drink)   return NextResponse.json({ error: "drink required" }, { status: 400 });
+    if (!venueId) return NextResponse.json({ error: "venue_id påkrævet" }, { status: 400 });
+    if (!drink)   return NextResponse.json({ error: "Drik er påkrævet" }, { status: 400 });
     const price = parseFloat(priceRaw);
-    if (isNaN(price)) return NextResponse.json({ error: "valid price_dkk required" }, { status: 400 });
-
-    const db = getDb();
-    await initDb();
-
+    if (isNaN(price)) return NextResponse.json({ error: "Gyldig pris påkrævet" }, { status: 400 });
+    const db = getDb(); await initDb();
     const venueCheck = await db.execute({ sql: "SELECT id FROM venues WHERE id = ?", args: [venueId] });
-    if (venueCheck.rows.length === 0) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
-
-    const userId = (session.user as { id?: string }).id ?? null;
-
+    if (venueCheck.rows.length === 0) return NextResponse.json({ error: "Sted ikke fundet" }, { status: 404 });
+    const userId = (session.user as any).id ?? null;
     let photoPath: string | null = null;
     if (photo && ALLOWED.has(photo.type)) {
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -76,27 +60,14 @@ export async function POST(req: NextRequest) {
       if (cloudName && uploadPreset) {
         try {
           const fd = new FormData();
-          fd.append("file", photo);
-          fd.append("upload_preset", uploadPreset);
+          fd.append("file", photo); fd.append("upload_preset", uploadPreset);
           const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
           if (res.ok) photoPath = (await res.json()).secure_url;
         } catch {}
       }
     }
-
-    const result = await db.execute({
-      sql: "INSERT INTO entries (venue_id, user_id, drink, category, price_dkk, notes, photo_path) VALUES (?,?,?,?,?,?,?)",
-      args: [venueId, userId, drink, category || null, price, notes || null, photoPath],
-    });
-    const entry = await db.execute({
-      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city,
-                   u.name as user_name
-            FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id
-            WHERE e.id = ?`,
-      args: [result.lastInsertRowid!],
-    });
+    const result = await db.execute({ sql: "INSERT INTO entries (venue_id, user_id, drink, category, price_dkk, notes, photo_path) VALUES (?,?,?,?,?,?,?)", args: [venueId, userId, drink, category || null, price, notes || null, photoPath] });
+    const entry = await db.execute({ sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city, u.name as user_name FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id WHERE e.id = ?`, args: [result.lastInsertRowid!] });
     return NextResponse.json({ ...entry.rows[0] }, { status: 201 });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+  } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
 }

@@ -1,26 +1,8 @@
-# Dependencies
 node_modules/
-
-# Next.js
 .next/
-out/
-
-# Database & uploads (don't commit data)
-barpriser.db
-barpriser.db-shm
-barpriser.db-wal
+barpriser.db*
 public/uploads/*
 !public/uploads/.gitkeep
-
-# Env
-.env
 .env.local
-.env*.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
 *.log
-npm-debug.log*
+.DS_Store

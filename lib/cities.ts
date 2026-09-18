@@ -1,8 +1,6 @@
-// ── Add new cities here ────────────────────────────────────────────────────
-// Just add a new line: { value: "city-slug", label: "City Name" }
-// The value is used internally, label is what users see.
-// Then run this SQL in the Turso console to allow the new city:
-//   (no SQL needed — just adding it here is enough!)
+// ── Tilføj nye byer her ───────────────────────────────────────────────────
+// Tilføj blot en ny linje: { value: "by-slug", label: "Bynavn" }
+// Det er alt der skal til — ingen andre ændringer nødvendige.
 
 export const CITIES = [
   { value: "koebenhavn", label: "København" },

@@ -22,13 +22,15 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("da");
 
   useEffect(() => {
-    const saved = localStorage.getItem("locale") as Locale | null;
-    if (saved && locales.find(l => l.code === saved)) setLocaleState(saved);
+    try {
+      const saved = localStorage.getItem("locale") as Locale | null;
+      if (saved && locales.find(l => l.code === saved)) setLocaleState(saved);
+    } catch {}
   }, []);
 
   function setLocale(l: Locale) {
     setLocaleState(l);
-    localStorage.setItem("locale", l);
+    try { localStorage.setItem("locale", l); } catch {}
   }
 
   function t(key: TranslationKey): string {

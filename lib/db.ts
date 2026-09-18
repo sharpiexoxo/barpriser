@@ -33,12 +33,7 @@ export async function initDb(): Promise<void> {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  // Auto-migrate: add city column if missing (for existing databases)
-  try {
-    await db.execute(`ALTER TABLE venues ADD COLUMN city TEXT NOT NULL DEFAULT 'aarhus'`);
-  } catch {
-    // Column already exists — safe to ignore
-  }
+  try { await db.execute(`ALTER TABLE venues ADD COLUMN city TEXT NOT NULL DEFAULT 'aarhus'`); } catch {}
 
   await db.execute(`CREATE TABLE IF NOT EXISTS entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,8 +90,6 @@ export interface Stats {
   total_entries: number; total_venues: number;
   overall_avg: number | null; overall_min: number | null; overall_max: number | null;
   by_category: { category: string; count: number; avg_price: number }[];
-  by_venue: {
-    id: number; name: string; city: string; location: string | null;
-    count: number; avg_price: number; min_price: number; max_price: number;
-  }[];
+  by_venue: { id: number; name: string; city: string; location: string | null;
+    count: number; avg_price: number; min_price: number; max_price: number }[];
 }
