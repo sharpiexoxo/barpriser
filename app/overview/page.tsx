@@ -20,16 +20,11 @@ function CityPicker({ onSelect }: { onSelect: (c: string) => void }) {
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="text-5xl mb-4">📊</div>
       <h3 className="font-serif text-2xl font-bold text-ink mb-2">Vælg en by</h3>
-      <p className="text-sm text-ink-3 mb-8 max-w-xs">
-        Vælg den by du vil se prisstatistik for
-      </p>
+      <p className="text-sm text-ink-3 mb-8 max-w-xs">Vælg den by du vil se prisstatistik for</p>
       <div className="flex flex-wrap gap-3 justify-center max-w-sm">
         {CITIES.map(c => (
-          <button
-            key={c.value}
-            onClick={() => onSelect(c.value)}
-            className="px-6 py-3 rounded-xl border-2 border-surface-3 bg-surface hover:border-brand hover:text-brand text-ink-2 text-sm font-medium transition-all"
-          >
+          <button key={c.value} onClick={() => onSelect(c.value)}
+            className="px-6 py-3 rounded-xl border-2 border-surface-3 bg-surface hover:border-brand hover:text-brand text-ink-2 text-sm font-medium transition-all">
             {c.label}
           </button>
         ))}
@@ -44,6 +39,9 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(false);
   const [city, setCity] = useState("");
   const cityLabel = CITIES.find(c => c.value === city)?.label ?? "";
+
+  // Reset city when component mounts (i.e. when navigating to this page)
+  useEffect(() => { setCity(""); setStats(null); }, []);
 
   useEffect(() => {
     if (!city) return;
@@ -75,23 +73,14 @@ export default function OverviewPage() {
       </div>
 
       <div className="px-10 py-8">
-        {/* City not chosen yet */}
         {!city && <CityPicker onSelect={setCity} />}
-
-        {/* Loading */}
-        {city && loading && (
-          <div className="text-center py-16 text-ink-3 text-sm">Indlæser statistik…</div>
-        )}
-
-        {/* No data */}
+        {city && loading && <div className="text-center py-16 text-ink-3 text-sm">Indlæser statistik…</div>}
         {city && !loading && stats && stats.total_entries === 0 && (
           <div className="text-center py-16 text-ink-3">
             <div className="text-5xl mb-3 opacity-20">📊</div>
             <p className="text-sm">Ingen priser registreret i {cityLabel} endnu</p>
           </div>
         )}
-
-        {/* Data */}
         {city && !loading && stats && stats.total_entries > 0 && (
           <div className="space-y-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
