@@ -1,7 +1,8 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/Toast";
 import ReportModal from "@/components/ReportModal";
 import { useLocale } from "@/components/LocaleProvider";
@@ -106,7 +107,6 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 
   if (loading) return <div className="text-center py-16 text-ink-3 text-sm">Indlæser kategorier…</div>;
 
-  // Find which categories actually have entries for this venue
   const usedCategories = [...new Set(entries.map(e => e.category).filter(Boolean))] as string[];
   const hasUncategorized = entries.some(e => !e.category);
 
@@ -121,8 +121,6 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
   return (
     <div>
       <p className="text-sm text-ink-3 mb-4">Vælg en drikke-kategori for at se priser</p>
-
-      {/* Show all */}
       <button onClick={() => onSelect("__all__")}
         className="card w-full text-left hover:border-brand transition-all group flex items-center justify-between mb-3">
         <div>
@@ -131,7 +129,6 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
         </div>
         <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors" />
       </button>
-
       <div className="section-label mt-5 mb-3">Eller vælg kategori</div>
       <div className="grid gap-2 md:grid-cols-2">
         {CATEGORIES.filter(c => usedCategories.includes(c)).map(c => {
@@ -155,9 +152,7 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
             className="card text-left hover:border-brand transition-all group flex items-center justify-between">
             <div>
               <div className="font-medium text-ink group-hover:text-brand transition-colors">Uden kategori</div>
-              <div className="font-mono text-xs text-ink-3 mt-0.5">
-                {entries.filter(e => !e.category).length} priser
-              </div>
+              <div className="font-mono text-xs text-ink-3 mt-0.5">{entries.filter(e => !e.category).length} priser</div>
             </div>
             <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors" />
           </button>
@@ -171,7 +166,6 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 function StepPrices({ venue, category }: { venue: Venue; category: string }) {
   const toast = useToast();
   const { data: session } = useSession();
-  const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [reporting, setReporting] = useState<Entry | null>(null);
@@ -198,7 +192,6 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
     else toast("Kunne ikke slette", "error");
   }
 
-  const categoryLabel = category === "__all__" ? "Alle priser" : category === "__none__" ? "Uden kategori" : category;
   const avgPrice = entries.length ? Math.round(entries.reduce((s, e) => s + e.price_dkk, 0) / entries.length) : null;
   const minPrice = entries.length ? Math.min(...entries.map(e => e.price_dkk)) : null;
   const maxPrice = entries.length ? Math.max(...entries.map(e => e.price_dkk)) : null;
@@ -214,7 +207,6 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
 
   return (
     <div>
-      {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="card text-center">
           <div className="font-mono text-[10px] uppercase tracking-wide text-ink-3 mb-1">Gennemsnit</div>
@@ -229,7 +221,6 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
           <div className="font-serif text-2xl font-bold text-ink">{maxPrice} <span className="text-sm font-sans text-ink-3 font-normal">kr</span></div>
         </div>
       </div>
-
       <div className="flex flex-col gap-3">
         {entries.map(e => {
           const userId = (session?.user as any)?.id;
@@ -237,8 +228,7 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
           return (
             <div key={e.id} className="card flex gap-4 items-start group hover:border-surface-3 transition-all">
               {e.photo_path
-                ? <img src={e.photo_path} alt={e.drink}
-                    className="w-16 h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
+                ? <img src={e.photo_path} alt={e.drink} className="w-16 h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
                 : <div className="w-16 h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-2xl">🍺</div>
               }
               <div className="flex-1 min-w-0">
@@ -260,8 +250,7 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
                 <div className="font-mono text-[10px] text-ink-3">DKK</div>
                 <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                   {session && (
-                    <button onClick={() => setReporting(e)}
-                      className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
+                    <button onClick={() => setReporting(e)} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
                       <Flag size={13} />
                     </button>
                   )}
@@ -276,14 +265,12 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
           );
         })}
       </div>
-
       {reporting && (
         <ReportModal entryId={reporting.id} drinkName={reporting.drink}
           onClose={() => setReporting(null)}
           onSuccess={() => { toast("Rapport sendt — tak!"); load(); }}
         />
       )}
-
       {!session && (
         <p className="text-center text-sm text-ink-3 mt-6">
           <a href="/login" className="text-brand font-medium hover:underline">Log ind</a> for at rapportere priser
@@ -293,16 +280,38 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────
-export default function EntriesPage() {
-  const [city, setCity]         = useState("");
-  const [venue, setVenue]       = useState<Venue | null>(null);
+// ── Main page with URL param support ─────────────────────────────────────
+function EntriesContent() {
+  const searchParams = useSearchParams();
+  const [city,     setCity]     = useState("");
+  const [venue,    setVenue]    = useState<Venue | null>(null);
   const [category, setCategory] = useState("");
 
-  const cityLabel  = CITIES.find(c => c.value === city)?.label ?? "";
-  const step       = !city ? 1 : !venue ? 2 : !category ? 3 : 4;
+  // On mount, read URL params and jump to the right step
+  useEffect(() => {
+    const cityParam  = searchParams.get("city");
+    const venueParam = searchParams.get("venue");
+    if (!cityParam) return;
 
-  // Breadcrumb / back navigation
+    setCity(cityParam);
+
+    if (venueParam) {
+      // Fetch the specific venue and jump to step 3
+      fetch(`/api/venues?city=${cityParam}`)
+        .then(r => r.json())
+        .then(venues => {
+          if (Array.isArray(venues)) {
+            const match = venues.find((v: Venue) => String(v.id) === venueParam);
+            if (match) setVenue(match);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [searchParams]);
+
+  const cityLabel = CITIES.find(c => c.value === city)?.label ?? "";
+  const step = !city ? 1 : !venue ? 2 : !category ? 3 : 4;
+
   function goBack() {
     if (category) { setCategory(""); return; }
     if (venue)    { setVenue(null);   return; }
@@ -318,16 +327,15 @@ export default function EntriesPage() {
   return (
     <ToastProvider>
       <div className="border-b border-surface-3 px-10 py-6">
-        {/* Breadcrumb */}
         {breadcrumb.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-ink-3 font-mono mb-2 flex-wrap">
-            <button onClick={() => { setCity(""); setVenue(null); setCategory(""); }} className="hover:text-brand transition-colors">
-              Alle byer
-            </button>
+            <button onClick={() => { setCity(""); setVenue(null); setCategory(""); }}
+              className="hover:text-brand transition-colors">Alle byer</button>
             {breadcrumb.map((crumb, i) => (
               <span key={i} className="flex items-center gap-1.5">
                 <ChevronRight size={11} />
-                <span className={i === breadcrumb.length - 1 ? "text-ink font-medium" : "hover:text-brand cursor-pointer transition-colors"}
+                <span
+                  className={i === breadcrumb.length - 1 ? "text-ink font-medium" : "hover:text-brand cursor-pointer transition-colors"}
                   onClick={() => {
                     if (i === 0) { setVenue(null); setCategory(""); }
                     if (i === 1) { setCategory(""); }
@@ -338,7 +346,6 @@ export default function EntriesPage() {
             ))}
           </div>
         )}
-
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="font-serif text-3xl font-bold text-ink">
@@ -350,7 +357,7 @@ export default function EntriesPage() {
             <p className="text-sm text-ink-3 mt-1">
               {step === 1 && "Vælg en by for at se priser"}
               {step === 2 && `${cityLabel} — vælg en bar`}
-              {step === 3 && `Vælg en drikke-kategori`}
+              {step === 3 && "Vælg en drikke-kategori"}
               {step === 4 && venue?.location && `📍 ${venue.location} · ${cityLabel}`}
             </p>
           </div>
@@ -361,7 +368,6 @@ export default function EntriesPage() {
           )}
         </div>
       </div>
-
       <div className="px-10 py-8">
         {step === 1 && <StepCity onSelect={c => { setCity(c); setVenue(null); setCategory(""); }} />}
         {step === 2 && <StepBar city={city} onSelect={v => { setVenue(v); setCategory(""); }} />}
@@ -369,5 +375,13 @@ export default function EntriesPage() {
         {step === 4 && venue && category && <StepPrices venue={venue} category={category} />}
       </div>
     </ToastProvider>
+  );
+}
+
+export default function EntriesPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-ink-3 text-sm">Indlæser…</div>}>
+      <EntriesContent />
+    </Suspense>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PlusCircle, List, BarChart2, MapPin, LogOut, LogIn, User, Star, ShieldCheck } from "lucide-react";
+import { PlusCircle, List, BarChart2, LogOut, LogIn, User, Star, ShieldCheck } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useLocale } from "./LocaleProvider";
 import LocalePicker from "./LocalePicker";
@@ -12,12 +12,12 @@ import clsx from "clsx";
 
 export default function Sidebar() {
   const path = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const { t } = useLocale();
   const [featured, setFeatured] = useState<Venue[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Load featured venues from dedicated endpoint
   useEffect(() => {
     fetch("/api/venues/featured")
       .then(r => r.json())
@@ -25,7 +25,6 @@ export default function Sidebar() {
       .catch(() => {});
   }, []);
 
-  // Check if current user is admin
   useEffect(() => {
     if (!session) { setIsAdmin(false); return; }
     fetch("/api/admin/venues")
@@ -39,11 +38,14 @@ export default function Sidebar() {
     { href: "/overview", label: t("nav_overview"), icon: BarChart2 },
   ];
 
-  // Group featured by city
   const featuredByCity = CITIES.map(c => ({
     city: c,
     venues: featured.filter(v => v.city === c.value),
   })).filter(g => g.venues.length > 0);
+
+  function goToVenue(venue: Venue) {
+    router.push(`/entries?city=${venue.city}&venue=${venue.id}`);
+  }
 
   return (
     <aside className="w-64 shrink-0 bg-ink flex flex-col sticky top-0 h-screen overflow-y-auto">
@@ -66,7 +68,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Sponsored / featured venues */}
+      {/* Sponsored venues */}
       {featuredByCity.length > 0 && (
         <div className="px-4 pt-5">
           <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-2 flex items-center gap-1.5 text-brand-mid/60">
@@ -76,14 +78,17 @@ export default function Sidebar() {
             <div key={city.value} className="mb-2">
               <p className="font-mono text-[8px] uppercase tracking-widest text-white/20 px-3 mb-1">{city.label}</p>
               {venues.map(v => (
-                <div key={v.id}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg text-[13px] text-white/70 hover:text-white hover:bg-white/[0.05] transition-all">
+                <button
+                  key={v.id}
+                  onClick={() => goToVenue(v)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[13px] text-white/70 hover:text-white hover:bg-white/[0.07] transition-all text-left group"
+                >
                   <span className="flex items-center gap-1.5 truncate">
                     <Star size={10} className="shrink-0 text-brand-mid fill-brand-mid" />
-                    {v.name}
+                    <span className="truncate group-hover:text-brand-mid transition-colors">{v.name}</span>
                   </span>
                   <span className="font-mono text-[10px] text-white/25 shrink-0 ml-2">{v.entry_count ?? 0}</span>
-                </div>
+                </button>
               ))}
             </div>
           ))}
