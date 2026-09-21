@@ -22,6 +22,7 @@ export async function initDb(): Promise<void> {
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     password TEXT NOT NULL,
+    is_admin INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
@@ -30,10 +31,9 @@ export async function initDb(): Promise<void> {
     name TEXT NOT NULL,
     city TEXT NOT NULL DEFAULT 'aarhus',
     location TEXT,
+    is_featured INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
-
-  try { await db.execute(`ALTER TABLE venues ADD COLUMN city TEXT NOT NULL DEFAULT 'aarhus'`); } catch {}
 
   await db.execute(`CREATE TABLE IF NOT EXISTS entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,9 +66,16 @@ export async function initDb(): Promise<void> {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  // Auto-migrations for existing databases
+  try { await db.execute(`ALTER TABLE venues ADD COLUMN city TEXT NOT NULL DEFAULT 'aarhus'`); } catch {}
+  try { await db.execute(`ALTER TABLE venues ADD COLUMN is_featured INTEGER DEFAULT 0`); } catch {}
+  try { await db.execute(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`); } catch {}
+
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_venue   ON entries(venue_id)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_created ON entries(created_at DESC)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_entries_cat     ON entries(category)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_venues_city     ON venues(city)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_venues_featured ON venues(is_featured)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_reports_entry   ON reports(entry_id)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_resets_token    ON password_resets(token)`);
 
@@ -76,7 +83,8 @@ export async function initDb(): Promise<void> {
 }
 
 export interface Venue {
-  id: number; name: string; city: string; location: string | null; created_at: string;
+  id: number; name: string; city: string; location: string | null;
+  is_featured: number; created_at: string;
   entry_count?: number; avg_price?: number | null;
 }
 export interface Entry {

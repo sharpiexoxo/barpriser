@@ -24,9 +24,13 @@ export async function PATCH(req: NextRequest) {
     const session = await requireAdmin();
     if (!session) return NextResponse.json({ error: "Ingen adgang" }, { status: 403 });
     const { id, is_featured } = await req.json();
-    if (!id) return NextResponse.json({ error: "id påkrævet" }, { status: 400 });
+    if (id === undefined) return NextResponse.json({ error: "id påkrævet" }, { status: 400 });
     const db = getDb(); await initDb();
-    await db.execute({ sql: "UPDATE venues SET is_featured = ? WHERE id = ?", args: [is_featured ? 1 : 0, id] });
-    return NextResponse.json({ ok: true });
+    await db.execute({
+      sql: "UPDATE venues SET is_featured = ? WHERE id = ?",
+      args: [is_featured ? 1 : 0, id],
+    });
+    const updated = await db.execute({ sql: "SELECT * FROM venues WHERE id = ?", args: [id] });
+    return NextResponse.json({ ok: true, venue: { ...updated.rows[0] } });
   } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
 }

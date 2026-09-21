@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PlusCircle, List, BarChart2, MapPin, LogOut, LogIn, User } from "lucide-react";
+import { PlusCircle, List, BarChart2, MapPin, LogOut, LogIn, User, Star, ShieldCheck } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useLocale } from "./LocaleProvider";
 import LocalePicker from "./LocalePicker";
+import { CITIES } from "@/lib/cities";
 import type { Venue } from "@/lib/db";
 import clsx from "clsx";
 
@@ -13,17 +14,36 @@ export default function Sidebar() {
   const path = usePathname();
   const { data: session } = useSession();
   const { t } = useLocale();
-  const [venues, setVenues] = useState<Venue[]>([]);
+  const [featured, setFeatured] = useState<Venue[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
+  // Load featured venues from dedicated endpoint
   useEffect(() => {
-    fetch("/api/venues").then(r => r.json()).then(d => Array.isArray(d) && setVenues(d)).catch(() => {});
+    fetch("/api/venues/featured")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setFeatured(d); })
+      .catch(() => {});
   }, []);
+
+  // Check if current user is admin
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); return; }
+    fetch("/api/admin/venues")
+      .then(r => { if (r.ok) setIsAdmin(true); else setIsAdmin(false); })
+      .catch(() => setIsAdmin(false));
+  }, [session]);
 
   const NAV = [
     { href: "/add",      label: t("nav_add"),      icon: PlusCircle },
     { href: "/entries",  label: t("nav_entries"),  icon: List },
     { href: "/overview", label: t("nav_overview"), icon: BarChart2 },
   ];
+
+  // Group featured by city
+  const featuredByCity = CITIES.map(c => ({
+    city: c,
+    venues: featured.filter(v => v.city === c.value),
+  })).filter(g => g.venues.length > 0);
 
   return (
     <aside className="w-64 shrink-0 bg-ink flex flex-col sticky top-0 h-screen overflow-y-auto">
@@ -46,22 +66,33 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-4 pt-5 flex-1">
-        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-white/25 px-1.5 mb-2">{t("nav_venues")}</p>
-        {venues.length === 0
-          ? <p className="text-[12px] text-white/20 px-1.5">{t("nav_no_venues")}</p>
-          : venues.slice(0, 8).map(v => (
-            <div key={v.id} className="flex items-center justify-between px-3 py-1.5 rounded-lg text-[13px] text-white/50 hover:text-white hover:bg-white/[0.05] transition-all">
-              <span className="flex items-center gap-1.5 truncate">
-                <MapPin size={11} className="shrink-0 text-brand-mid/60" />{v.name}
-              </span>
-              <span className="font-mono text-[10px] text-white/25 shrink-0 ml-2">{v.entry_count ?? 0}</span>
+      {/* Sponsored / featured venues */}
+      {featuredByCity.length > 0 && (
+        <div className="px-4 pt-5">
+          <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-2 flex items-center gap-1.5 text-brand-mid/60">
+            <Star size={9} className="fill-brand-mid text-brand-mid" /> Sponsorerede steder
+          </p>
+          {featuredByCity.map(({ city, venues }) => (
+            <div key={city.value} className="mb-2">
+              <p className="font-mono text-[8px] uppercase tracking-widest text-white/20 px-3 mb-1">{city.label}</p>
+              {venues.map(v => (
+                <div key={v.id}
+                  className="flex items-center justify-between px-3 py-1.5 rounded-lg text-[13px] text-white/70 hover:text-white hover:bg-white/[0.05] transition-all">
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Star size={10} className="shrink-0 text-brand-mid fill-brand-mid" />
+                    {v.name}
+                  </span>
+                  <span className="font-mono text-[10px] text-white/25 shrink-0 ml-2">{v.entry_count ?? 0}</span>
+                </div>
+              ))}
             </div>
-          ))
-        }
-      </div>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-4 border-t border-white/[0.07] pt-4">
+      <div className="flex-1" />
+
+      <div className="border-t border-white/[0.07] pt-4">
         <LocalePicker variant="sidebar" />
         <div className="px-4 pb-4">
           {session ? (
@@ -75,13 +106,20 @@ export default function Sidebar() {
                   <div className="text-[10px] text-white/30 truncate">{session.user?.email}</div>
                 </div>
               </div>
+              {isAdmin && (
+                <Link href="/admin"
+                  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-[12px] text-brand-mid hover:bg-white/[0.06] transition-all mb-1">
+                  <ShieldCheck size={13} /> Admin panel
+                </Link>
+              )}
               <button onClick={() => signOut({ callbackUrl: "/login" })}
                 className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-[12px] text-white/40 hover:text-white hover:bg-white/[0.06] transition-all">
                 <LogOut size={13} />{t("nav_signout")}
               </button>
             </div>
           ) : (
-            <Link href="/login" className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] text-white/40 hover:text-white hover:bg-white/[0.06] transition-all">
+            <Link href="/login"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] text-white/40 hover:text-white hover:bg-white/[0.06] transition-all">
               <LogIn size={13} />{t("nav_signin")}
             </Link>
           )}
