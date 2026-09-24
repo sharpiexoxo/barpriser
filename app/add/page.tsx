@@ -273,11 +273,11 @@ export default function AddPage() {
   const { t } = useLocale();
   return (
     <ToastProvider>
-      <div className="border-b border-surface-3 px-10 py-7">
+      <div className="border-b border-surface-3 px-4 md:px-10 py-5 md:py-7">
         <h2 className="font-serif text-3xl font-bold text-ink">{t("add_title")}</h2>
         <p className="text-sm text-ink-3 mt-1">{t("add_subtitle")}</p>
       </div>
-      <div className="px-10 py-8"><AddForm /></div>
+      <div className="px-4 md:px-10 py-6 md:py-8"><AddForm /></div>
     </ToastProvider>
   );
 }

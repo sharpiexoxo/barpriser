@@ -19,23 +19,28 @@ export default function MobileNav() {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-ink border-t border-white/10 flex items-stretch">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-ink border-t border-white/10 flex items-stretch safe-area-bottom">
       {NAV.map(({ href, label, icon: Icon }) => (
         <Link key={href} href={href} className={clsx(
-          "flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors",
+          "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors min-w-0",
           path === href ? "text-brand-mid" : "text-white/40 hover:text-white/70"
         )}>
-          <Icon size={19} />{label}
+          <Icon size={18} />
+          <span className="truncate w-full text-center px-0.5">{label}</span>
         </Link>
       ))}
-      <LocalePicker variant="mobile" />
+      <div className="flex items-center justify-center px-1">
+        <LocalePicker variant="mobile" />
+      </div>
       {session
         ? <button onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] text-white/40">
-            <LogOut size={19} />{t("nav_signout")}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] text-white/40 min-w-0">
+            <LogOut size={18} />
+            <span className="truncate w-full text-center px-0.5">{t("nav_signout")}</span>
           </button>
-        : <Link href="/login" className="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] text-white/40">
-            <LogIn size={19} />{t("nav_signin")}
+        : <Link href="/login" className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] text-white/40 min-w-0">
+            <LogIn size={18} />
+            <span className="truncate w-full text-center px-0.5">{t("nav_signin")}</span>
           </Link>
       }
     </nav>

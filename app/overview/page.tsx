@@ -56,7 +56,7 @@ export default function OverviewPage() {
 
   return (
     <>
-      <div className="border-b border-surface-3 px-10 py-7 flex items-center justify-between">
+      <div className="border-b border-surface-3 px-4 md:px-10 py-5 md:py-7 flex items-center justify-between">
         <div>
           <h2 className="font-serif text-3xl font-bold text-ink">
             {city ? `Oversigt — ${cityLabel}` : "Oversigt"}
@@ -72,7 +72,7 @@ export default function OverviewPage() {
         )}
       </div>
 
-      <div className="px-10 py-8">
+      <div className="px-4 md:px-10 py-6 md:py-8">
         {!city && <CityPicker onSelect={setCity} />}
         {city && loading && <div className="text-center py-16 text-ink-3 text-sm">Indlæser statistik…</div>}
         {city && !loading && stats && stats.total_entries === 0 && (
