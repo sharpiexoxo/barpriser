@@ -2,33 +2,15 @@
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { useLocale } from "@/components/LocaleProvider";
+import CityPicker from "@/components/CityPicker";
 import { CITIES } from "@/lib/cities";
 import type { Stats } from "@/lib/db";
-import clsx from "clsx";
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="card">
       <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-3 mb-1">{label}</div>
       <div className="font-serif text-3xl font-bold text-ink" dangerouslySetInnerHTML={{ __html: value }} />
-    </div>
-  );
-}
-
-function CityPicker({ onSelect }: { onSelect: (c: string) => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="text-5xl mb-4">📊</div>
-      <h3 className="font-serif text-2xl font-bold text-ink mb-2">Vælg en by</h3>
-      <p className="text-sm text-ink-3 mb-8 max-w-xs">Vælg den by du vil se prisstatistik for</p>
-      <div className="flex flex-wrap gap-3 justify-center max-w-sm">
-        {CITIES.map(c => (
-          <button key={c.value} onClick={() => onSelect(c.value)}
-            className="px-6 py-3 rounded-xl border-2 border-surface-3 bg-surface hover:border-brand hover:text-brand text-ink-2 text-sm font-medium transition-all">
-            {c.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -40,7 +22,6 @@ export default function OverviewPage() {
   const [city, setCity] = useState("");
   const cityLabel = CITIES.find(c => c.value === city)?.label ?? "";
 
-  // Reset city when component mounts (i.e. when navigating to this page)
   useEffect(() => { setCity(""); setStats(null); }, []);
 
   useEffect(() => {
@@ -56,9 +37,9 @@ export default function OverviewPage() {
 
   return (
     <>
-      <div className="border-b border-surface-3 px-4 md:px-10 py-5 md:py-7 flex items-center justify-between">
+      <div className="border-b border-surface-3 px-4 md:px-10 py-5 md:py-7 flex items-center justify-between gap-4">
         <div>
-          <h2 className="font-serif text-3xl font-bold text-ink">
+          <h2 className="font-serif text-2xl md:text-3xl font-bold text-ink">
             {city ? `Oversigt — ${cityLabel}` : "Oversigt"}
           </h2>
           <p className="text-sm text-ink-3 mt-1">
@@ -66,21 +47,31 @@ export default function OverviewPage() {
           </p>
         </div>
         {city && (
-          <button onClick={() => { setCity(""); setStats(null); }} className="btn-ghost text-sm">
+          <button onClick={() => { setCity(""); setStats(null); }} className="btn-ghost text-sm shrink-0">
             Skift by
           </button>
         )}
       </div>
 
       <div className="px-4 md:px-10 py-6 md:py-8">
-        {!city && <CityPicker onSelect={setCity} />}
+        {!city && (
+          <CityPicker
+            onSelect={setCity}
+            icon="📊"
+            title="Vælg en by"
+            subtitle="Vælg den by du vil se prisstatistik for"
+          />
+        )}
+
         {city && loading && <div className="text-center py-16 text-ink-3 text-sm">Indlæser statistik…</div>}
+
         {city && !loading && stats && stats.total_entries === 0 && (
           <div className="text-center py-16 text-ink-3">
             <div className="text-5xl mb-3 opacity-20">📊</div>
             <p className="text-sm">Ingen priser registreret i {cityLabel} endnu</p>
           </div>
         )}
+
         {city && !loading && stats && stats.total_entries > 0 && (
           <div className="space-y-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -99,7 +90,7 @@ export default function OverviewPage() {
               <div className="flex flex-col gap-2">
                 {stats.by_venue.map(v => (
                   <div key={v.id} className="flex items-center gap-3">
-                    <div className="w-40 shrink-0 text-sm text-ink-2 truncate" title={v.name}>{v.name}</div>
+                    <div className="w-32 md:w-40 shrink-0 text-sm text-ink-2 truncate" title={v.name}>{v.name}</div>
                     <div className="flex-1 h-7 bg-surface-2 rounded overflow-hidden">
                       <div className="h-full bg-brand rounded flex items-center justify-end pr-3 transition-all duration-700"
                         style={{ width: `${Math.round((v.avg_price / maxAvg) * 100)}%`, minWidth: "60px" }}>
@@ -150,16 +141,16 @@ function VenueCard({ venue }: { venue: Stats["by_venue"][0] }) {
 
   return (
     <div className="border border-surface-3 rounded-xl overflow-hidden bg-surface">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-surface-3">
-        <div>
-          <div className="font-serif text-lg font-bold text-ink">{venue.name}</div>
+      <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b border-surface-3">
+        <div className="min-w-0">
+          <div className="font-serif text-lg font-bold text-ink truncate">{venue.name}</div>
           {venue.location && (
             <div className="flex items-center gap-1 text-[12px] text-ink-3 mt-0.5">
               <MapPin size={10} />{venue.location}
             </div>
           )}
         </div>
-        <div className="flex gap-5 text-right">
+        <div className="flex gap-4 md:gap-5 text-right shrink-0 ml-3">
           <div>
             <div className="font-mono text-base font-medium text-brand">{Math.round(venue.avg_price)} kr</div>
             <div className="text-[10px] font-mono uppercase text-ink-3 tracking-wide">gns.</div>
@@ -175,11 +166,11 @@ function VenueCard({ venue }: { venue: Stats["by_venue"][0] }) {
             <tbody>
               {entries.slice(0, 10).map(e => (
                 <tr key={e.id} className="border-b border-surface-3 last:border-0 hover:bg-surface-2 transition-colors">
-                  <td className="px-5 py-2.5">
+                  <td className="px-4 md:px-5 py-2.5">
                     <div className="text-ink font-medium">{e.drink}</div>
                     {e.category && <div className="text-[11px] text-ink-3">{e.category}</div>}
                   </td>
-                  <td className="px-5 py-2.5 text-right font-mono font-medium text-brand whitespace-nowrap">
+                  <td className="px-4 md:px-5 py-2.5 text-right font-mono font-medium text-brand whitespace-nowrap">
                     {Math.round(e.price_dkk)} kr
                   </td>
                 </tr>

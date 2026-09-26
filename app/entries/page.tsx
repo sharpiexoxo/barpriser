@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/Toast";
 import ReportModal from "@/components/ReportModal";
 import { useLocale } from "@/components/LocaleProvider";
+import CityPicker from "@/components/CityPicker";
 import { CITIES } from "@/lib/cities";
 import type { Entry, Venue } from "@/lib/db";
 import clsx from "clsx";
@@ -14,27 +15,6 @@ function formatDate(iso: string) {
   return new Date(iso + "Z").toLocaleDateString("da-DK", {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
   });
-}
-
-// ── Step 1: Pick city ─────────────────────────────────────────────────────
-function StepCity({ onSelect }: { onSelect: (city: string) => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-      <div className="text-5xl mb-4">🏙️</div>
-      <h3 className="font-serif text-2xl font-bold text-ink mb-2">Vælg en by</h3>
-      <p className="text-sm text-ink-3 mb-8 max-w-xs">
-        Vælg den by du vil se drikkevarepriser fra
-      </p>
-      <div className="flex flex-wrap gap-3 justify-center max-w-md">
-        {CITIES.map(c => (
-          <button key={c.value} onClick={() => onSelect(c.value)}
-            className="px-6 py-3 rounded-xl border-2 border-surface-3 bg-surface hover:border-brand hover:text-brand text-ink-2 text-sm font-medium transition-all flex items-center gap-2">
-            {c.label} <ChevronRight size={14} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ── Step 2: Pick bar ──────────────────────────────────────────────────────
@@ -72,14 +52,14 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
           v.is_featured && "border-brand/30 bg-brand-light/10"
         )}>
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
             {v.is_featured && (
               <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-brand text-white px-2 py-0.5 rounded-full shrink-0">
                 <Star size={8} className="fill-white" /> Sponsoreret
               </span>
             )}
-            <div className="font-serif text-lg font-bold text-ink group-hover:text-brand transition-colors truncate">{v.name}</div>
           </div>
+          <div className="font-serif text-lg font-bold text-ink group-hover:text-brand transition-colors truncate">{v.name}</div>
           {v.location && (
             <div className="flex items-center gap-1 text-xs text-ink-3 mt-1">
               <MapPin size={10} className="shrink-0" /><span className="truncate">{v.location}</span>
@@ -97,8 +77,6 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
   return (
     <div>
       <p className="text-sm text-ink-3 mb-4">{venues.length} {venues.length === 1 ? "bar" : "barer"} i {cityLabel}</p>
-
-      {/* Sponsored first */}
       {sponsored.length > 0 && (
         <div className="mb-5">
           <div className="section-label mb-3">
@@ -109,8 +87,6 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
           </div>
         </div>
       )}
-
-      {/* Regular venues */}
       {regular.length > 0 && (
         <div>
           {sponsored.length > 0 && <div className="section-label mb-3">Alle barer</div>}
@@ -123,7 +99,7 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
   );
 }
 
-// ── Step 3: Pick drink category ───────────────────────────────────────────
+// ── Step 3: Pick category ─────────────────────────────────────────────────
 function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: string) => void }) {
   const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -157,7 +133,6 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
   return (
     <div>
       <p className="text-sm text-ink-3 mb-4">Vælg en drikke-kategori for at se priser</p>
-
       <button onClick={() => onSelect("__all__")}
         className="card w-full text-left hover:border-brand transition-all group flex items-center justify-between mb-3">
         <div>
@@ -166,7 +141,6 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
         </div>
         <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors shrink-0" />
       </button>
-
       <div className="section-label mt-5 mb-3">Eller vælg kategori</div>
       <div className="grid gap-2 md:grid-cols-2">
         {CATEGORIES.filter(c => usedCategories.includes(c)).map(c => {
@@ -177,9 +151,7 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
               className="card text-left hover:border-brand transition-all group flex items-center justify-between">
               <div className="min-w-0">
                 <div className="font-medium text-ink group-hover:text-brand transition-colors">{c}</div>
-                <div className="font-mono text-xs text-ink-3 mt-0.5">
-                  {count} {count === 1 ? "pris" : "priser"} · gns. {avgPrice} kr
-                </div>
+                <div className="font-mono text-xs text-ink-3 mt-0.5">{count} {count === 1 ? "pris" : "priser"} · gns. {avgPrice} kr</div>
               </div>
               <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors shrink-0 ml-2" />
             </button>
@@ -245,18 +217,16 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
 
   return (
     <div>
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-2 md:gap-3 mb-6">
-        {[["Gennemsnit", avgPrice, "text-brand"], ["Laveste", minPrice, "text-ink"], ["Højeste", maxPrice, "text-ink"]].map(([label, val, cls]) => (
-          <div key={label as string} className="card text-center p-3 md:p-5">
-            <div className="font-mono text-[9px] md:text-[10px] uppercase tracking-wide text-ink-3 mb-1">{label as string}</div>
-            <div className={clsx("font-serif text-xl md:text-2xl font-bold", cls as string)}>
+        {([["Gennemsnit", avgPrice, "text-brand"], ["Laveste", minPrice, "text-ink"], ["Højeste", maxPrice, "text-ink"]] as const).map(([label, val, cls]) => (
+          <div key={label} className="card text-center p-3 md:p-5">
+            <div className="font-mono text-[9px] md:text-[10px] uppercase tracking-wide text-ink-3 mb-1">{label}</div>
+            <div className={clsx("font-serif text-xl md:text-2xl font-bold", cls)}>
               {val} <span className="text-xs md:text-sm font-sans text-ink-3 font-normal">kr</span>
             </div>
           </div>
         ))}
       </div>
-
       <div className="flex flex-col gap-3">
         {entries.map(e => {
           const userId = (session?.user as any)?.id;
@@ -265,16 +235,14 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
             <div key={e.id} className="card flex gap-3 md:gap-4 items-start group hover:border-surface-3 transition-all p-3 md:p-5">
               {e.photo_path
                 ? <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
-                : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl md:text-2xl">🍺</div>
+                : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl">🍺</div>
               }
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] md:text-[15px] font-medium text-ink">{e.drink}</div>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                   {e.category && <span className="badge bg-brand-light text-brand-dark">{e.category}</span>}
                   {e.notes && <span className="badge bg-surface-2 text-ink-3">{e.notes}</span>}
-                  {(e.report_count ?? 0) > 0 && (
-                    <span className="badge bg-red-50 text-red-600">⚑ {e.report_count}</span>
-                  )}
+                  {(e.report_count ?? 0) > 0 && <span className="badge bg-red-50 text-red-600">⚑ {e.report_count}</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   <span className="text-[11px] text-ink-3">{formatDate(e.created_at)}</span>
@@ -301,7 +269,6 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
           );
         })}
       </div>
-
       {reporting && (
         <ReportModal entryId={reporting.id} drinkName={reporting.drink}
           onClose={() => setReporting(null)}
@@ -317,7 +284,7 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────
 function EntriesContent() {
   const searchParams = useSearchParams();
   const [city,     setCity]     = useState("");
@@ -369,10 +336,7 @@ function EntriesContent() {
                 <ChevronRight size={10} className="shrink-0" />
                 <span
                   className={clsx("truncate", i === breadcrumb.length - 1 ? "text-ink font-medium" : "hover:text-brand cursor-pointer transition-colors")}
-                  onClick={() => {
-                    if (i === 0) { setVenue(null); setCategory(""); }
-                    if (i === 1) { setCategory(""); }
-                  }}>
+                  onClick={() => { if (i === 0) { setVenue(null); setCategory(""); } if (i === 1) setCategory(""); }}>
                   {crumb}
                 </span>
               </span>
@@ -385,7 +349,7 @@ function EntriesContent() {
               {step === 1 && "Alle priser"}
               {step === 2 && `Barer i ${cityLabel}`}
               {step === 3 && venue?.name}
-              {step === 4 && (category === "__all__" ? `Alle — ${venue?.name}` : category === "__none__" ? `Uden kategori` : category)}
+              {step === 4 && (category === "__all__" ? `Alle — ${venue?.name}` : category === "__none__" ? "Uden kategori" : category)}
             </h2>
             <p className="text-sm text-ink-3 mt-1 truncate">
               {step === 1 && "Vælg en by for at se priser"}
@@ -401,9 +365,8 @@ function EntriesContent() {
           )}
         </div>
       </div>
-
       <div className="px-4 md:px-10 py-6 md:py-8">
-        {step === 1 && <StepCity onSelect={c => { setCity(c); setVenue(null); setCategory(""); }} />}
+        {step === 1 && <CityPicker onSelect={c => { setCity(c); setVenue(null); setCategory(""); }} />}
         {step === 2 && <StepBar city={city} onSelect={v => { setVenue(v); setCategory(""); }} />}
         {step === 3 && venue && <StepCategory venue={venue} onSelect={setCategory} />}
         {step === 4 && venue && category && <StepPrices venue={venue} category={category} />}

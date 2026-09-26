@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Camera, X, Plus, Check, LogIn, Search, MapPin } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast, ToastProvider } from "@/components/Toast";
@@ -19,9 +19,15 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   const [showNew, setShowNew] = useState(false);
   const [nvName, setNvName] = useState("");
   const [nvCity, setNvCity] = useState("");
+  const [nvCitySearch, setNvCitySearch] = useState("");
   const [nvLocation, setNvLocation] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const filteredCities = useMemo(() => {
+    const q = nvCitySearch.toLowerCase();
+    return CITIES.filter(c => !q || c.label.toLowerCase().includes(q));
+  }, [nvCitySearch]);
 
   useEffect(() => {
     fetch("/api/venues").then(r => r.json()).then(d => { if (Array.isArray(d)) setAll(d); }).catch(() => {});
@@ -52,7 +58,7 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
     const v: Venue = await res.json();
     const updated = await fetch("/api/venues").then(r => r.json());
     if (Array.isArray(updated)) setAll(updated);
-    setNvName(""); setNvCity(""); setNvLocation(""); setShowNew(false);
+    setNvName(""); setNvCity(""); setNvCitySearch(""); setNvLocation(""); setShowNew(false);
     pick(v);
     toast(t("toast_venue_added"));
   }
@@ -78,8 +84,8 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
       </div>
 
       {selected && (
-        <div className="mt-2 flex items-center gap-2 text-sm text-brand-dark font-medium">
-          <Check size={14} className="text-brand" />
+        <div className="mt-2 flex items-center gap-2 text-sm text-brand-dark font-medium flex-wrap">
+          <Check size={14} className="text-brand shrink-0" />
           <span>{selected.name}</span>
           <span className="text-ink-3 font-normal text-xs">· {cityLabel}{selected.location ? `, ${selected.location}` : ""}</span>
           <button onClick={clear} className="ml-auto text-xs text-ink-3 hover:text-brand underline">{t("add_change")}</button>
@@ -97,9 +103,9 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
                     <button onMouseDown={() => pick(v)}
                       className="w-full text-left px-4 py-3 hover:bg-surface-2 transition-colors flex items-center gap-3 border-b border-surface-3 last:border-0">
                       <MapPin size={13} className="text-brand shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-ink">{v.name}</div>
-                        <div className="text-xs text-ink-3">{city}{v.location ? ` · ${v.location}` : ""}</div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-ink truncate">{v.name}</div>
+                        <div className="text-xs text-ink-3 truncate">{city}{v.location ? ` · ${v.location}` : ""}</div>
                       </div>
                       <div className="ml-auto font-mono text-[10px] text-ink-3 shrink-0">{v.entry_count ?? 0} {t("add_entries")}</div>
                     </button>
@@ -130,19 +136,44 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
       {showNew && !selected && (
         <div className="mt-3 p-4 bg-surface-2 rounded-xl border border-surface-3">
           <p className="text-xs font-medium text-ink-2 mb-3">{t("add_new_venue")}</p>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_name")}</label>
               <input value={nvName} onChange={e => setNvName(e.target.value)} placeholder={t("add_venue_ph")} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_city")}</label>
-              <select value={nvCity} onChange={e => setNvCity(e.target.value)}>
-                <option value="">{t("add_venue_city_select")}</option>
-                {CITIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
+              {/* Searchable city select */}
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+                <input
+                  value={nvCity ? (CITIES.find(c => c.value === nvCity)?.label ?? nvCity) : nvCitySearch}
+                  onChange={e => { setNvCitySearch(e.target.value); setNvCity(""); }}
+                  placeholder="Søg efter by…"
+                  className="pl-7 text-sm"
+                  onFocus={() => setNvCity("")}
+                />
+              </div>
+              {(nvCitySearch || !nvCity) && filteredCities.length > 0 && !nvCity && nvCitySearch && (
+                <div className="border border-surface-3 rounded-lg mt-1 bg-surface shadow-lg max-h-40 overflow-y-auto">
+                  {filteredCities.map(c => (
+                    <button key={c.value} type="button"
+                      onMouseDown={() => { setNvCity(c.value); setNvCitySearch(c.label); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 transition-colors border-b border-surface-3 last:border-0">
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!nvCitySearch && !nvCity && (
+                <select value={nvCity} onChange={e => { setNvCity(e.target.value); setNvCitySearch(""); }}
+                  className="mt-1 text-sm">
+                  <option value="">{t("add_venue_city_select")}</option>
+                  {CITIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              )}
             </div>
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_loc")}</label>
               <input value={nvLocation} onChange={e => setNvLocation(e.target.value)} placeholder={t("add_venue_loc_ph")} />
             </div>
@@ -172,11 +203,11 @@ function AddForm() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (status === "unauthenticated") return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
+    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
       <div className="text-5xl mb-4">🍺</div>
       <h3 className="font-serif text-xl font-bold text-ink mb-2">{t("add_signin_title")}</h3>
       <p className="text-sm text-ink-3 mb-6 max-w-xs">{t("add_signin_desc")}</p>
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap justify-center">
         <Link href="/login" className="btn-primary"><LogIn size={15} />{t("add_signin_btn")}</Link>
         <Link href="/register" className="btn-ghost">{t("add_register_btn")}</Link>
       </div>
@@ -223,7 +254,7 @@ function AddForm() {
       <div className="mb-7">
         <div className="section-label">{t("add_step2")}</div>
         <div className="card">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_drink")}</label>
               <input value={drink} onChange={e => setDrink(e.target.value)} placeholder={t("add_drink_ph")} />
@@ -256,7 +287,7 @@ function AddForm() {
               </div>
             : <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-surface-3 rounded-xl p-8 cursor-pointer hover:border-brand hover:bg-brand-light transition-all">
                 <Camera size={28} className="text-brand" />
-                <span className="text-sm text-ink-3">{t("add_photo_hint")}</span>
+                <span className="text-sm text-ink-3 text-center">{t("add_photo_hint")}</span>
                 <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} />
               </label>
           }
@@ -274,7 +305,7 @@ export default function AddPage() {
   return (
     <ToastProvider>
       <div className="border-b border-surface-3 px-4 md:px-10 py-5 md:py-7">
-        <h2 className="font-serif text-3xl font-bold text-ink">{t("add_title")}</h2>
+        <h2 className="font-serif text-2xl md:text-3xl font-bold text-ink">{t("add_title")}</h2>
         <p className="text-sm text-ink-3 mt-1">{t("add_subtitle")}</p>
       </div>
       <div className="px-4 md:px-10 py-6 md:py-8"><AddForm /></div>
