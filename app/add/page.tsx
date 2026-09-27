@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useToast, ToastProvider } from "@/components/Toast";
 import { useLocale } from "@/components/LocaleProvider";
 import { CITIES } from "@/lib/cities";
+import { CATEGORIES_DA, CATEGORIES_EN } from "@/lib/categories";
 import type { Venue } from "@/lib/db";
 import clsx from "clsx";
 import Link from "next/link";
@@ -48,7 +49,7 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
 
   async function createVenue() {
     if (!nvName.trim()) { toast(t("toast_fail_venue"), "error"); return; }
-    if (!nvCity)        { toast(t("toast_fail_city"),  "error"); return; }
+    if (!nvCity) { toast(t("toast_fail_city"), "error"); return; }
     const res = await fetch("/api/venues", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -143,7 +144,6 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
             </div>
             <div>
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_city")}</label>
-              {/* Searchable city select */}
               <div className="relative">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
                 <input
@@ -151,10 +151,10 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
                   onChange={e => { setNvCitySearch(e.target.value); setNvCity(""); }}
                   placeholder="Søg efter by…"
                   className="pl-7 text-sm"
-                  onFocus={() => setNvCity("")}
+                  onFocus={() => { if (nvCity) { setNvCitySearch(""); setNvCity(""); } }}
                 />
               </div>
-              {(nvCitySearch || !nvCity) && filteredCities.length > 0 && !nvCity && nvCitySearch && (
+              {!nvCity && nvCitySearch && filteredCities.length > 0 && (
                 <div className="border border-surface-3 rounded-lg mt-1 bg-surface shadow-lg max-h-40 overflow-y-auto">
                   {filteredCities.map(c => (
                     <button key={c.value} type="button"
@@ -166,8 +166,7 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
                 </div>
               )}
               {!nvCitySearch && !nvCity && (
-                <select value={nvCity} onChange={e => { setNvCity(e.target.value); setNvCitySearch(""); }}
-                  className="mt-1 text-sm">
+                <select value={nvCity} onChange={e => { setNvCity(e.target.value); setNvCitySearch(""); }} className="mt-1 text-sm">
                   <option value="">{t("add_venue_city_select")}</option>
                   {CITIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
@@ -190,7 +189,7 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
 
 function AddForm() {
   const toast = useToast();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { status } = useSession();
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [drink, setDrink] = useState("");
@@ -201,6 +200,8 @@ function AddForm() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const CATEGORIES = locale === "da" ? CATEGORIES_DA : CATEGORIES_EN;
 
   if (status === "unauthenticated") return (
     <div className="flex flex-col items-center justify-center py-20 text-center px-4">
@@ -215,8 +216,6 @@ function AddForm() {
   );
   if (status === "loading") return <div className="py-20 text-center text-ink-3 text-sm">{t("add_loading")}</div>;
 
-  const CATEGORIES = [t("cat_beer_draft"),t("cat_beer_bottle"),t("cat_wine"),t("cat_cocktail"),t("cat_spirit"),t("cat_shot"),t("cat_soft"),t("cat_other")];
-
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     setPhotoFile(file); setPhotoUrl(URL.createObjectURL(file));
@@ -224,8 +223,8 @@ function AddForm() {
   function removePhoto() { setPhotoFile(null); setPhotoUrl(null); if (fileRef.current) fileRef.current.value = ""; }
 
   async function submit() {
-    if (!selectedVenue)          { toast(t("toast_fail_venue_sel"), "error"); return; }
-    if (!drink.trim())           { toast(t("toast_fail_drink"), "error"); return; }
+    if (!selectedVenue) { toast(t("toast_fail_venue_sel"), "error"); return; }
+    if (!drink.trim())  { toast(t("toast_fail_drink"), "error"); return; }
     if (!price || isNaN(+price)) { toast(t("toast_fail_price"), "error"); return; }
     setSubmitting(true);
     try {
