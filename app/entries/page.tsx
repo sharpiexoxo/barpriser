@@ -101,13 +101,14 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
 
 // ── Step 3: Pick category ─────────────────────────────────────────────────
 function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: string) => void }) {
-  const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const CATEGORIES = [
-    t("cat_beer_draft"), t("cat_beer_bottle"), t("cat_wine"), t("cat_cocktail"),
-    t("cat_spirit"), t("cat_shot"), t("cat_soft"), t("cat_other"),
+    "Fadøl", "Dåse/flaskeøl", "Specialøl", "Cider",
+    "Shots", "Drinks", "Cocktails", "Vin",
+    "Spiritus", "Sodavand", "Energi- og læskedrikke",
+    "Vand", "Kaffe & varme drikke", "Alkoholfri",
   ];
 
   useEffect(() => {
