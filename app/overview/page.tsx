@@ -4,6 +4,8 @@ import { MapPin } from "lucide-react";
 import { useLocale } from "@/components/LocaleProvider";
 import CityPicker from "@/components/CityPicker";
 import { CITIES } from "@/lib/cities";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
 import type { Stats } from "@/lib/db";
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -15,14 +17,16 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function OverviewPage() {
+function OverviewContent() {
   const { t } = useLocale();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
   const [city, setCity] = useState("");
   const cityLabel = CITIES.find(c => c.value === city)?.label ?? "";
 
-  useEffect(() => { setCity(""); setStats(null); }, []);
+  const searchParams = useSearchParams();
+  // Reset when the t= param changes (set by nav buttons to force remount)
+  useEffect(() => { setCity(""); setStats(null); }, [searchParams.get("t")]);
 
   useEffect(() => {
     if (!city) return;
@@ -180,5 +184,13 @@ function VenueCard({ venue }: { venue: Stats["by_venue"][0] }) {
         : <div className="px-5 py-4 text-[13px] text-ink-3">Ingen priser endnu</div>
       }
     </div>
+  );
+}
+
+export default function OverviewPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-ink-3 text-sm">Indlæser…</div>}>
+      <OverviewContent />
+    </Suspense>
   );
 }

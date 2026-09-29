@@ -1,6 +1,5 @@
 "use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { PlusCircle, List, BarChart2, LogIn, LogOut } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useLocale } from "./LocaleProvider";
@@ -9,8 +8,13 @@ import clsx from "clsx";
 
 export default function MobileNav() {
   const path = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const { t } = useLocale();
+
+  function navTo(href: string) {
+    router.push(`${href}?t=${Date.now()}`);
+  }
 
   const NAV = [
     { href: "/add",      label: t("nav_add"),      icon: PlusCircle },
@@ -21,13 +25,14 @@ export default function MobileNav() {
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-ink border-t border-white/10 flex items-stretch safe-area-bottom">
       {NAV.map(({ href, label, icon: Icon }) => (
-        <Link key={href} href={href} className={clsx(
-          "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors min-w-0",
-          path === href ? "text-brand-mid" : "text-white/40 hover:text-white/70"
-        )}>
+        <button key={href} onClick={() => navTo(href)}
+          className={clsx(
+            "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors min-w-0",
+            path === href ? "text-brand-mid" : "text-white/40 hover:text-white/70"
+          )}>
           <Icon size={18} />
           <span className="truncate w-full text-center px-0.5">{label}</span>
-        </Link>
+        </button>
       ))}
       <div className="flex items-center justify-center px-1">
         <LocalePicker variant="mobile" />
@@ -38,10 +43,11 @@ export default function MobileNav() {
             <LogOut size={18} />
             <span className="truncate w-full text-center px-0.5">{t("nav_signout")}</span>
           </button>
-        : <Link href="/login" className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] text-white/40 min-w-0">
+        : <button onClick={() => navTo("/login")}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] text-white/40 min-w-0">
             <LogIn size={18} />
             <span className="truncate w-full text-center px-0.5">{t("nav_signin")}</span>
-          </Link>
+          </button>
       }
     </nav>
   );
