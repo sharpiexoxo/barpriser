@@ -9,6 +9,58 @@ import clsx from "clsx";
 const CATEGORIES = ["Fadøl","Dåse/flaskeøl","Specialøl","Cider","Shots","Drinks","Cocktails","Vin","Spiritus","Sodavand","Energi- og læskedrikke","Vand","Kaffe & varme drikke","Alkoholfri"];
 const OFFER_DAYS = [{ value:"1",label:"Man"},{ value:"2",label:"Tir"},{ value:"3",label:"Ons"},{ value:"4",label:"Tor"},{ value:"5",label:"Fre"},{ value:"6",label:"Lør"},{ value:"0",label:"Søn"}];
 const UNTIL_OPTIONS = ["12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00"];
+const DAY_ORDER_ADMIN = ["1","2","3","4","5","6","0"];
+interface OfferRuleAdmin { days: string[]; until: string; }
+
+function parseAdminRules(offerDays: string | null): OfferRuleAdmin[] {
+  if (!offerDays) return [{ days: [], until: "" }];
+  try {
+    const parsed = JSON.parse(offerDays);
+    if (Array.isArray(parsed)) return parsed.map(r => ({ days: r.days ?? [], until: r.until ?? "" }));
+  } catch {}
+  return [{ days: offerDays.split(","), until: "" }];
+}
+
+function AdminRuleEditor({ rule, onChange, onRemove, showRemove }: {
+  rule: OfferRuleAdmin; onChange: (r: OfferRuleAdmin) => void; onRemove: () => void; showRemove: boolean;
+}) {
+  function toggleDay(d: string) {
+    onChange({ ...rule, days: rule.days.includes(d) ? rule.days.filter(x => x !== d) : [...rule.days, d] });
+  }
+  return (
+    <div className="border border-surface-3 rounded-xl p-3 bg-surface">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-medium text-ink-2">
+          {rule.days.length > 0
+            ? [...rule.days].sort((a,b) => DAY_ORDER_ADMIN.indexOf(a)-DAY_ORDER_ADMIN.indexOf(b)).map(d => OFFER_DAYS.find(x=>x.value===d)?.label).join(", ")
+            : "Ingen dage valgt"}
+          {rule.until ? ` · til ${rule.until}` : " · hele dagen"}
+        </span>
+        {showRemove && <button type="button" onClick={onRemove} className="text-xs text-red-500 hover:underline">Fjern</button>}
+      </div>
+      <div className="flex gap-1.5 flex-wrap mb-2">
+        {OFFER_DAYS.map(d => (
+          <button key={d.value} type="button" onClick={() => toggleDay(d.value)}
+            className={clsx("px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
+              rule.days.includes(d.value) ? "bg-brand text-white border-brand" : "bg-surface border-surface-3 text-ink-2 hover:border-brand")}>
+            {d.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2 flex-wrap mb-2">
+        <button type="button" onClick={() => onChange({...rule,days:["1","2","3","4","5"]})} className="text-xs text-brand hover:underline">Hverdage</button>
+        <span className="text-ink-3 text-xs">·</span>
+        <button type="button" onClick={() => onChange({...rule,days:["6","0"]})} className="text-xs text-brand hover:underline">Weekend</button>
+        <span className="text-ink-3 text-xs">·</span>
+        <button type="button" onClick={() => onChange({...rule,days:["0","1","2","3","4","5","6"]})} className="text-xs text-brand hover:underline">Alle</button>
+      </div>
+      <select value={rule.until} onChange={e => onChange({...rule, until: e.target.value})} className="text-sm">
+        <option value="">Hele dagen</option>
+        {UNTIL_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+    </div>
+  );
+}
 
 interface AdminVenue  { id: number; name: string; city: string; location: string | null; is_featured: number; entry_count: number; }
 interface AdminUser   { id: number; name: string; email: string; is_admin: number; created_at: string; }
@@ -83,8 +135,6 @@ function EditEntryModal({ entry, onSave, onClose }: { entry: AdminEntry; onSave:
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState("");
 
-  function toggleDay(d: string) { setOfferDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]); }
-
   async function save() {
     if (!drink.trim()) { setError("Drik er påkrævet"); return; }
     if (!price || isNaN(+price)) { setError("Gyldig pris er påkrævet"); return; }
@@ -117,27 +167,24 @@ function EditEntryModal({ entry, onSave, onClose }: { entry: AdminEntry; onSave:
         </div>
         <div className="border-t border-surface-3 pt-4 mt-2 mb-4">
           <p className="text-xs font-medium text-ink-2 mb-3">🏷️ Tilbudspris</p>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="block text-xs font-medium text-ink-2 mb-1">Tilbudspris (DKK)</label><input type="number" value={offerPrice} onChange={e => setOfferPrice(e.target.value)} placeholder="f.eks. 35" min="0" step="5" /></div>
-            <div><label className="block text-xs font-medium text-ink-2 mb-1">Frem til kl.</label>
-              <select value={offerUntil} onChange={e => setOfferUntil(e.target.value)}>
-                <option value="">— vælg —</option>
-                {UNTIL_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-ink-2 mb-1">Tilbudspris (DKK)</label>
+            <input type="number" value={offerPrice} onChange={e => setOfferPrice(e.target.value)} placeholder="f.eks. 35" min="0" step="5" />
           </div>
-          <label className="block text-xs font-medium text-ink-2 mb-2">Gælder hvilke dage?</label>
-          <div className="flex gap-1.5 flex-wrap mb-2">
-            {OFFER_DAYS.map(d => (
-              <button key={d.value} type="button" onClick={() => toggleDay(d.value)}
-                className={clsx("px-2.5 py-1 rounded-lg text-xs font-medium border transition-all", offerDays.includes(d.value) ? "bg-brand text-white border-brand" : "bg-surface border-surface-3 text-ink-2 hover:border-brand")}>
-                {d.label}
-              </button>
+          <label className="block text-xs font-medium text-ink-2 mb-2">Hvornår gælder tilbuddet?</label>
+          <div className="flex flex-col gap-2 mb-2">
+            {offerRules.map((rule, i) => (
+              <AdminRuleEditor key={i} rule={rule}
+                onChange={r => { const next=[...offerRules]; next[i]=r; setOfferRules(next); }}
+                onRemove={() => setOfferRules(offerRules.filter((_,idx)=>idx!==i))}
+                showRemove={offerRules.length > 1} />
             ))}
           </div>
-          {(offerPrice || offerDays.length > 0 || offerUntil) && (
-            <button type="button" onClick={() => { setOfferPrice(""); setOfferDays([]); setOfferUntil(""); }} className="text-xs text-red-500 hover:underline">Ryd tilbud</button>
-          )}
+          <button type="button" onClick={() => setOfferRules([...offerRules,{days:[],until:""}])}
+            className="text-xs text-brand hover:underline flex items-center gap-1">
+            + Tilføj endnu en regel
+          </button>
+          {offerPrice && <button type="button" onClick={() => { setOfferPrice(""); setOfferRules([{days:[],until:""}]); }} className="text-xs text-red-500 hover:underline block mt-2">Ryd tilbud</button>}
         </div>
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mb-4">{error}</p>}
         <div className="flex gap-3">

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, Suspense } from "react";
-import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, Star, Tag } from "lucide-react";
+import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, ChevronDown, Star, Tag } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/Toast";
@@ -175,30 +175,92 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 
 
 const DAY_NAMES: Record<string, string> = { "0":"Søn","1":"Man","2":"Tir","3":"Ons","4":"Tor","5":"Fre","6":"Lør" };
+const DAY_ORDER = ["1","2","3","4","5","6","0"];
 
-function isOfferActive(days: string | null, until: string | null): boolean {
+interface OfferRule { days: string[]; until: string | null; }
+
+function parseOfferRules(offerDays: string | null, offerUntil: string | null): OfferRule[] {
+  if (!offerDays) return [];
+  // Try parsing as JSON array of rules (new format)
+  try {
+    const parsed = JSON.parse(offerDays);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  // Fall back to old flat format
+  return [{ days: offerDays.split(","), until: offerUntil }];
+}
+
+function isRuleActive(rule: OfferRule): boolean {
   const now = new Date();
   const currentDay  = String(now.getDay());
   const currentTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-  const dayOk  = !days  || days.split(",").includes(currentDay);
-  const timeOk = !until || currentTime <= until;
+  const dayOk  = rule.days.length === 0 || rule.days.includes(currentDay);
+  const timeOk = !rule.until || currentTime <= rule.until;
   return dayOk && timeOk;
 }
 
-function OfferBadge({ price, days, until }: { price: number; days: string | null; until: string | null }) {
-  const active = isOfferActive(days, until);
-  const dayLabels = days ? days.split(",").sort().map(d => DAY_NAMES[d]).join(", ") : null;
+function formatRuleLabel(rule: OfferRule): string {
+  const dayLabels = rule.days.length > 0
+    ? [...rule.days].sort((a,b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).map(d => DAY_NAMES[d]).join(", ")
+    : "Alle dage";
+  return rule.until ? `${dayLabels} · til ${rule.until}` : `${dayLabels} · hele dagen`;
+}
+
+function OfferStrip({ price, days, until }: { price: number; days: string | null; until: string | null }) {
+  const [expanded, setExpanded] = useState(false);
+  const rules = parseOfferRules(days, until);
+  const activeRule = rules.find(isRuleActive);
+  const isActive = !!activeRule;
+
+  if (rules.length === 0) return null;
+
   return (
-    <div className={clsx("mt-1.5 rounded-lg px-2.5 py-1.5 text-right border", active ? "bg-green-50 border-green-200" : "bg-surface-2 border-surface-3")}>
-      <div className="flex items-center gap-1 justify-end">
-        <Tag size={9} className={active ? "text-green-600" : "text-ink-3"} />
-        <span className={clsx("font-serif text-base font-bold", active ? "text-green-700" : "text-ink-3")}>
-          {Math.round(price)} <span className="text-[10px] font-sans font-normal">kr</span>
-        </span>
-      </div>
-      {until && <div className="font-mono text-[9px] text-ink-3">frem til {until}</div>}
-      {dayLabels && <div className="font-mono text-[9px] text-ink-3 truncate max-w-[80px]">{dayLabels}</div>}
-      {active && <div className="text-[9px] text-green-600 font-medium">Aktivt nu ✓</div>}
+    <div className={clsx(
+      "rounded-b-xl overflow-hidden -mx-5 -mb-5 mt-3 border-t",
+      isActive ? "bg-green-600 border-green-600" : "bg-surface-2 border-surface-3"
+    )}>
+      <button
+        type="button"
+        onClick={() => setExpanded(x => !x)}
+        className="w-full flex items-center justify-between px-4 py-2.5 gap-3"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <Tag size={13} className={clsx("shrink-0", isActive ? "text-white/80" : "text-ink-3")} />
+          <span className={clsx("font-bold text-base shrink-0", isActive ? "text-white" : "text-ink-2")}>
+            {Math.round(price)} kr
+          </span>
+          {isActive && activeRule?.until && (
+            <span className="text-sm text-white/70 shrink-0">· til {activeRule.until}</span>
+          )}
+          {!isActive && rules.length === 1 && rules[0].until && (
+            <span className="text-sm text-ink-3 shrink-0">· til {rules[0].until}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isActive
+            ? <span className="text-sm font-medium text-white whitespace-nowrap">Aktivt nu ✓</span>
+            : <span className="text-xs text-ink-3 whitespace-nowrap">Ikke aktivt</span>
+          }
+          <ChevronDown
+            size={15}
+            className={clsx("transition-transform shrink-0", isActive ? "text-white/70" : "text-ink-3", expanded && "rotate-180")}
+          />
+        </div>
+      </button>
+      {expanded && (
+        <div className={clsx("px-4 pb-3 flex flex-col gap-1", isActive ? "text-white/70" : "text-ink-3")}>
+          {rules.map((rule, i) => {
+            const ruleActive = isRuleActive(rule);
+            return (
+              <div key={i} className={clsx("text-xs flex items-center gap-1.5",
+                ruleActive ? (isActive ? "text-white font-medium" : "text-green-600 font-medium") : "")}>
+                {ruleActive && <span>✓</span>}
+                {formatRuleLabel(rule)}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -263,42 +325,44 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
           const userId = (session?.user as any)?.id;
           const isOwner = userId && String(e.user_id) === userId;
           return (
-            <div key={e.id} className="card flex gap-3 md:gap-4 items-start group hover:border-surface-3 transition-all p-3 md:p-5">
-              {e.photo_path
-                ? <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
-                : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl">🍺</div>
-              }
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] md:text-[15px] font-medium text-ink">{e.drink}</div>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  {e.category && <span className="badge bg-brand-light text-brand-dark">{e.category}</span>}
-                  {e.notes && <span className="badge bg-surface-2 text-ink-3">{e.notes}</span>}
-                  {(e.report_count ?? 0) > 0 && <span className="badge bg-red-50 text-red-600">⚑ {e.report_count}</span>}
+            <div key={e.id} className="card p-3 md:p-5 group hover:border-surface-3 transition-all overflow-hidden">
+              <div className="flex gap-3 md:gap-4 items-start">
+                {e.photo_path
+                  ? <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
+                  : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl">🍺</div>
+                }
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] md:text-[15px] font-medium text-ink">{e.drink}</div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    {e.category && <span className="badge bg-brand-light text-brand-dark">{e.category}</span>}
+                    {e.notes && <span className="badge bg-surface-2 text-ink-3">{e.notes}</span>}
+                    {(e.report_count ?? 0) > 0 && <span className="badge bg-red-50 text-red-600">⚑ {e.report_count}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="text-[11px] text-ink-3">{formatDate(e.created_at)}</span>
+                    {e.user_name && <span className="flex items-center gap-1 text-[11px] text-ink-3"><User size={9} />{e.user_name}</span>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <span className="text-[11px] text-ink-3">{formatDate(e.created_at)}</span>
-                  {e.user_name && <span className="flex items-center gap-1 text-[11px] text-ink-3"><User size={9} />{e.user_name}</span>}
+                <div className="text-right shrink-0">
+                  <div className="font-serif text-xl md:text-2xl font-bold text-brand">{Math.round(e.price_dkk)}</div>
+                  <div className="font-mono text-[10px] text-ink-3">DKK</div>
+                  <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    {session && (
+                      <button onClick={() => setReporting(e)} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
+                        <Flag size={13} />
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button onClick={() => del(e.id)} className="btn-danger p-1.5 rounded-lg">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="text-right shrink-0 flex flex-col items-end">
-                <div className="font-serif text-xl md:text-2xl font-bold text-brand">{Math.round(e.price_dkk)}</div>
-                <div className="font-mono text-[10px] text-ink-3">DKK</div>
-                {e.offer_price && (
-                  <OfferBadge price={e.offer_price} days={e.offer_days ?? null} until={e.offer_until ?? null} />
-                )}
-                <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                  {session && (
-                    <button onClick={() => setReporting(e)} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
-                      <Flag size={13} />
-                    </button>
-                  )}
-                  {isOwner && (
-                    <button onClick={() => del(e.id)} className="btn-danger p-1.5 rounded-lg">
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
+              {e.offer_price && (
+                <OfferStrip price={e.offer_price} days={e.offer_days ?? null} until={e.offer_until ?? null} />
+              )}
             </div>
           );
         })}

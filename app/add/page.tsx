@@ -168,23 +168,88 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   );
 }
 
-// ── Offer section ─────────────────────────────────────────────────────────
-function OfferSection({ offerPrice, setOfferPrice, offerDays, setOfferDays, offerUntil, setOfferUntil }: {
-  offerPrice: string; setOfferPrice: (v: string) => void;
-  offerDays: string[]; setOfferDays: (v: string[]) => void;
-  offerUntil: string; setOfferUntil: (v: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const hasOffer = offerPrice || offerDays.length > 0 || offerUntil;
+// ── Offer section with multi-rule support ────────────────────────────────
+interface OfferRule { days: string[]; until: string; }
+const DAY_ORDER = ["1","2","3","4","5","6","0"];
 
+function RuleEditor({ rule, onChange, onRemove, showRemove }: {
+  rule: OfferRule;
+  onChange: (r: OfferRule) => void;
+  onRemove: () => void;
+  showRemove: boolean;
+}) {
   function toggleDay(d: string) {
-    setOfferDays(offerDays.includes(d) ? offerDays.filter(x => x !== d) : [...offerDays, d]);
+    const days = rule.days.includes(d) ? rule.days.filter(x => x !== d) : [...rule.days, d];
+    onChange({ ...rule, days });
+  }
+  function setPreset(preset: string) {
+    if (preset === "weekdays") onChange({ ...rule, days: ["1","2","3","4","5"] });
+    if (preset === "weekend")  onChange({ ...rule, days: ["6","0"] });
+    if (preset === "all")      onChange({ ...rule, days: ["0","1","2","3","4","5","6"] });
   }
 
-  function setPreset(preset: string) {
-    if (preset === "weekdays") setOfferDays(["1","2","3","4","5"]);
-    if (preset === "weekend")  setOfferDays(["6","0"]);
-    if (preset === "all")      setOfferDays(["0","1","2","3","4","5","6"]);
+  const sortedDays = [...rule.days].sort((a,b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+  const dayLabels  = sortedDays.map(d => DAYS.find(x => x.value === d)?.label).join(", ");
+
+  return (
+    <div className="border border-surface-3 rounded-xl p-3 bg-surface">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-medium text-ink-2 uppercase tracking-wide">
+          {dayLabels || "Ingen dage valgt"}{rule.until ? ` · til ${rule.until}` : " · hele dagen"}
+        </span>
+        {showRemove && (
+          <button type="button" onClick={onRemove} className="text-xs text-red-500 hover:underline">Fjern</button>
+        )}
+      </div>
+
+      <div className="flex gap-1.5 flex-wrap mb-2">
+        {DAYS.map(d => (
+          <button key={d.value} type="button" onClick={() => toggleDay(d.value)}
+            className={clsx("px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all",
+              rule.days.includes(d.value) ? "bg-brand text-white border-brand" : "bg-surface border-surface-3 text-ink-2 hover:border-brand hover:text-brand")}>
+            {d.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2 flex-wrap mb-3">
+        <button type="button" onClick={() => setPreset("weekdays")} className="text-xs text-brand hover:underline">Hverdage</button>
+        <span className="text-ink-3 text-xs">·</span>
+        <button type="button" onClick={() => setPreset("weekend")} className="text-xs text-brand hover:underline">Weekend</button>
+        <span className="text-ink-3 text-xs">·</span>
+        <button type="button" onClick={() => setPreset("all")} className="text-xs text-brand hover:underline">Alle</button>
+      </div>
+
+      <div>
+        <label className="block text-[11px] font-medium text-ink-2 mb-1">
+          Frem til kl. <span className="text-ink-3 font-normal">(lad stå tom = hele dagen)</span>
+        </label>
+        <select value={rule.until} onChange={e => onChange({ ...rule, until: e.target.value })} className="text-sm">
+          <option value="">Hele dagen</option>
+          {UNTIL_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function OfferSection({ offerPrice, setOfferPrice, offerRules, setOfferRules }: {
+  offerPrice: string; setOfferPrice: (v: string) => void;
+  offerRules: OfferRule[]; setOfferRules: (v: OfferRule[]) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasOffer = offerPrice || offerRules.some(r => r.days.length > 0);
+
+  function addRule() {
+    setOfferRules([...offerRules, { days: [], until: "" }]);
+  }
+  function updateRule(i: number, rule: OfferRule) {
+    const next = [...offerRules]; next[i] = rule; setOfferRules(next);
+  }
+  function removeRule(i: number) {
+    setOfferRules(offerRules.filter((_, idx) => idx !== i));
+  }
+  function clearOffer() {
+    setOfferPrice(""); setOfferRules([{ days: [], until: "" }]);
   }
 
   return (
@@ -192,64 +257,48 @@ function OfferSection({ offerPrice, setOfferPrice, offerDays, setOfferDays, offe
       <button type="button" onClick={() => setExpanded(e => !e)}
         className="w-full flex items-center gap-3 px-4 py-3 text-left">
         <Tag size={15} className={hasOffer ? "text-brand" : "text-ink-3"} />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className={clsx("text-sm font-medium", hasOffer ? "text-brand-dark" : "text-ink-2")}>
             Tilbudspris (valgfrit)
           </div>
-          {hasOffer ? (
-            <div className="text-xs text-ink-3 mt-0.5">
-              {offerPrice ? `${offerPrice} kr` : ""}
-              {offerDays.length > 0 ? ` · ${offerDays.sort().map(d => DAYS.find(x => x.value === d)?.label).join(", ")}` : ""}
-              {offerUntil ? ` · frem til ${offerUntil}` : ""}
-            </div>
-          ) : (
-            <div className="text-xs text-ink-3 mt-0.5">Har stedet et særtilbud på denne drik?</div>
-          )}
+          <div className="text-xs text-ink-3 mt-0.5 truncate">
+            {hasOffer
+              ? `${offerPrice ? offerPrice + " kr" : ""}${offerRules.filter(r => r.days.length > 0).length > 0 ? ` · ${offerRules.filter(r=>r.days.length>0).length} regel${offerRules.filter(r=>r.days.length>0).length>1?"r":""}` : ""}`
+              : "Har stedet et særtilbud på denne drik?"}
+          </div>
         </div>
         {expanded ? <ChevronUp size={14} className="text-ink-3 shrink-0" /> : <ChevronDown size={14} className="text-ink-3 shrink-0" />}
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 border-t border-surface-3 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Tilbudspris (DKK)</label>
-              <input type="number" value={offerPrice} onChange={e => setOfferPrice(e.target.value)}
-                placeholder="f.eks. 35" min="0" step="5" />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-ink-2 mb-1">Frem til kl.</label>
-              <select value={offerUntil} onChange={e => setOfferUntil(e.target.value)}>
-                <option value="">— vælg tidspunkt —</option>
-                {UNTIL_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+        <div className="px-4 pb-4 border-t border-surface-3 pt-4 flex flex-col gap-4">
+          <div>
+            <label className="block text-[11px] font-medium text-ink-2 mb-1">Tilbudspris (DKK) *</label>
+            <input type="number" value={offerPrice} onChange={e => setOfferPrice(e.target.value)}
+              placeholder="f.eks. 35" min="0" step="5" />
           </div>
 
-          <label className="block text-[11px] font-medium text-ink-2 mb-2">Gælder hvilke dage?</label>
-          <div className="flex gap-1.5 flex-wrap mb-3">
-            {DAYS.map(d => (
-              <button key={d.value} type="button" onClick={() => toggleDay(d.value)}
-                className={clsx("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-                  offerDays.includes(d.value) ? "bg-brand text-white border-brand" : "bg-surface border-surface-3 text-ink-2 hover:border-brand hover:text-brand")}>
-                {d.label}
-              </button>
-            ))}
+          <div>
+            <label className="block text-[11px] font-medium text-ink-2 mb-2">
+              Hvornår gælder tilbuddet?
+            </label>
+            <div className="flex flex-col gap-3">
+              {offerRules.map((rule, i) => (
+                <RuleEditor key={i} rule={rule} onChange={r => updateRule(i, r)}
+                  onRemove={() => removeRule(i)} showRemove={offerRules.length > 1} />
+              ))}
+            </div>
+            <button type="button" onClick={addRule}
+              className="mt-3 flex items-center gap-1.5 text-xs text-brand hover:underline font-medium">
+              <Plus size={12} /> Tilføj endnu en regel
+            </button>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <button type="button" onClick={() => setPreset("weekdays")} className="text-xs text-brand hover:underline">Vælg hverdage</button>
-            <span className="text-ink-3 text-xs">·</span>
-            <button type="button" onClick={() => setPreset("weekend")} className="text-xs text-brand hover:underline">Vælg weekend</button>
-            <span className="text-ink-3 text-xs">·</span>
-            <button type="button" onClick={() => setPreset("all")} className="text-xs text-brand hover:underline">Vælg alle</button>
-            {(offerDays.length > 0 || offerPrice || offerUntil) && (
-              <>
-                <span className="text-ink-3 text-xs">·</span>
-                <button type="button" onClick={() => { setOfferPrice(""); setOfferDays([]); setOfferUntil(""); }}
-                  className="text-xs text-red-500 hover:underline">Ryd tilbud</button>
-              </>
-            )}
-          </div>
+
+          {hasOffer && (
+            <button type="button" onClick={clearOffer} className="text-xs text-red-500 hover:underline self-start">
+              Ryd hele tilbuddet
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -266,8 +315,7 @@ function AddForm() {
   const [price,      setPrice]      = useState("");
   const [notes,      setNotes]      = useState("");
   const [offerPrice, setOfferPrice] = useState("");
-  const [offerDays,  setOfferDays]  = useState<string[]>([]);
-  const [offerUntil, setOfferUntil] = useState("");
+  const [offerRules, setOfferRules] = useState<OfferRule[]>([{ days: [], until: "" }]);
   const [photoFile,  setPhotoFile]  = useState<File | null>(null);
   const [photoUrl,   setPhotoUrl]   = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -306,14 +354,18 @@ function AddForm() {
       fd.append("category",  category);
       fd.append("price_dkk", price);
       fd.append("notes",     notes.trim());
-      if (offerPrice)          fd.append("offer_price", offerPrice);
-      if (offerDays.length > 0) fd.append("offer_days",  offerDays.join(","));
-      if (offerUntil)          fd.append("offer_until", offerUntil);
+      const activeRules = offerRules.filter(r => r.days.length > 0);
+      if (offerPrice && activeRules.length > 0) {
+        fd.append("offer_price", offerPrice);
+        fd.append("offer_days",  JSON.stringify(activeRules.map(r => ({ days: r.days, until: r.until || null }))));
+        // offer_until not used in new format — send empty
+        fd.append("offer_until", "");
+      }
       if (photoFile)           fd.append("photo",       photoFile);
       const res = await fetch("/api/entries", { method: "POST", body: fd });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       setDrink(""); setCategory(""); setPrice(""); setNotes("");
-      setOfferPrice(""); setOfferDays([]); setOfferUntil("");
+      setOfferPrice(""); setOfferRules([{ days: [], until: "" }]);
       removePhoto();
       toast(t("toast_entry_saved"));
     } catch (e: unknown) {
@@ -355,8 +407,7 @@ function AddForm() {
           {/* Offer price section */}
           <OfferSection
             offerPrice={offerPrice} setOfferPrice={setOfferPrice}
-            offerDays={offerDays}   setOfferDays={setOfferDays}
-            offerUntil={offerUntil} setOfferUntil={setOfferUntil}
+            offerRules={offerRules} setOfferRules={setOfferRules}
           />
         </div>
       </div>
