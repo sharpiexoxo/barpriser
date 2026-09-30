@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, Suspense } from "react";
-import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, Star } from "lucide-react";
+import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, Star, Tag } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/Toast";
@@ -173,6 +173,36 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
   );
 }
 
+
+const DAY_NAMES: Record<string, string> = { "0":"Søn","1":"Man","2":"Tir","3":"Ons","4":"Tor","5":"Fre","6":"Lør" };
+
+function isOfferActive(days: string | null, until: string | null): boolean {
+  const now = new Date();
+  const currentDay  = String(now.getDay());
+  const currentTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const dayOk  = !days  || days.split(",").includes(currentDay);
+  const timeOk = !until || currentTime <= until;
+  return dayOk && timeOk;
+}
+
+function OfferBadge({ price, days, until }: { price: number; days: string | null; until: string | null }) {
+  const active = isOfferActive(days, until);
+  const dayLabels = days ? days.split(",").sort().map(d => DAY_NAMES[d]).join(", ") : null;
+  return (
+    <div className={clsx("mt-1.5 rounded-lg px-2.5 py-1.5 text-right border", active ? "bg-green-50 border-green-200" : "bg-surface-2 border-surface-3")}>
+      <div className="flex items-center gap-1 justify-end">
+        <Tag size={9} className={active ? "text-green-600" : "text-ink-3"} />
+        <span className={clsx("font-serif text-base font-bold", active ? "text-green-700" : "text-ink-3")}>
+          {Math.round(price)} <span className="text-[10px] font-sans font-normal">kr</span>
+        </span>
+      </div>
+      {until && <div className="font-mono text-[9px] text-ink-3">frem til {until}</div>}
+      {dayLabels && <div className="font-mono text-[9px] text-ink-3 truncate max-w-[80px]">{dayLabels}</div>}
+      {active && <div className="text-[9px] text-green-600 font-medium">Aktivt nu ✓</div>}
+    </div>
+  );
+}
+
 // ── Step 4: Show prices ───────────────────────────────────────────────────
 function StepPrices({ venue, category }: { venue: Venue; category: string }) {
   const toast = useToast();
@@ -250,9 +280,12 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
                   {e.user_name && <span className="flex items-center gap-1 text-[11px] text-ink-3"><User size={9} />{e.user_name}</span>}
                 </div>
               </div>
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0 flex flex-col items-end">
                 <div className="font-serif text-xl md:text-2xl font-bold text-brand">{Math.round(e.price_dkk)}</div>
                 <div className="font-mono text-[10px] text-ink-3">DKK</div>
+                {e.offer_price && (
+                  <OfferBadge price={e.offer_price} days={e.offer_days ?? null} until={e.offer_until ?? null} />
+                )}
                 <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                   {session && (
                     <button onClick={() => setReporting(e)} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">

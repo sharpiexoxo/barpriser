@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, initDb } from "@/lib/db";
 import bcrypt from "bcryptjs";
-
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
 export async function POST(req: NextRequest) {
   try {
     const { token, password } = await req.json();

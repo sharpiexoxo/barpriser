@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Camera, X, Plus, Check, LogIn, Search, MapPin } from "lucide-react";
+import { Camera, X, Plus, Check, LogIn, Search, MapPin, Tag, ChevronDown, ChevronUp } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast, ToastProvider } from "@/components/Toast";
 import { useLocale } from "@/components/LocaleProvider";
@@ -10,11 +10,25 @@ import type { Venue } from "@/lib/db";
 import clsx from "clsx";
 import Link from "next/link";
 
+const DAYS = [
+  { value: "1", label: "Man" },
+  { value: "2", label: "Tir" },
+  { value: "3", label: "Ons" },
+  { value: "4", label: "Tor" },
+  { value: "5", label: "Fre" },
+  { value: "6", label: "Lør" },
+  { value: "0", label: "Søn" },
+];
+
+const UNTIL_OPTIONS = [
+  "12:00","13:00","14:00","15:00","16:00","17:00",
+  "18:00","19:00","20:00","21:00","22:00","23:00",
+];
+
 function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   const toast = useToast();
   const { t } = useLocale();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Venue[]>([]);
   const [all, setAll] = useState<Venue[]>([]);
   const [selected, setSelected] = useState<Venue | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -23,7 +37,6 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   const [nvCitySearch, setNvCitySearch] = useState("");
   const [nvLocation, setNvLocation] = useState("");
   const [open, setOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const filteredCities = useMemo(() => {
     const q = nvCitySearch.toLowerCase();
@@ -34,56 +47,40 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
     fetch("/api/venues").then(r => r.json()).then(d => { if (Array.isArray(d)) setAll(d); }).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); return; }
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
     const q = query.toLowerCase();
-    setResults(all.filter(v =>
-      v.name.toLowerCase().includes(q) ||
-      (v.location ?? "").toLowerCase().includes(q) ||
-      (v.city ?? "").toLowerCase().includes(q)
-    ).slice(0, 8));
+    return all.filter(v => v.name.toLowerCase().includes(q) || (v.location ?? "").toLowerCase().includes(q)).slice(0, 8);
   }, [query, all]);
 
   function pick(v: Venue) { setSelected(v); setQuery(v.name); setOpen(false); setShowNew(false); onSelect(v); }
-  function clear() { setSelected(null); setQuery(""); setResults([]); setShowNew(false); setOpen(false); }
+  function clear() { setSelected(null); setQuery(""); setOpen(false); setShowNew(false); }
 
   async function createVenue() {
     if (!nvName.trim()) { toast(t("toast_fail_venue"), "error"); return; }
     if (!nvCity) { toast(t("toast_fail_city"), "error"); return; }
-    const res = await fetch("/api/venues", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: nvName.trim(), city: nvCity, location: nvLocation.trim() }),
-    });
+    const res = await fetch("/api/venues", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nvName.trim(), city: nvCity, location: nvLocation.trim() }) });
     if (!res.ok) { const d = await res.json(); toast(d.error, "error"); return; }
     const v: Venue = await res.json();
     const updated = await fetch("/api/venues").then(r => r.json());
     if (Array.isArray(updated)) setAll(updated);
     setNvName(""); setNvCity(""); setNvCitySearch(""); setNvLocation(""); setShowNew(false);
-    pick(v);
-    toast(t("toast_venue_added"));
+    pick(v); toast(t("toast_venue_added"));
   }
 
-  const noResults = query.trim().length > 0 && results.length === 0 && !selected;
   const cityLabel = selected ? CITIES.find(c => c.value === selected.city)?.label ?? selected.city : "";
 
   return (
     <div className="relative">
-      <div className={clsx(
-        "flex items-center gap-2 border rounded-xl px-3 py-2.5 transition-all bg-surface",
-        selected ? "border-brand bg-brand-light/30" : "border-surface-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10"
-      )}>
+      <div className={clsx("flex items-center gap-2 border rounded-xl px-3 py-2.5 transition-all bg-surface", selected ? "border-brand bg-brand-light/30" : "border-surface-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10")}>
         {selected ? <MapPin size={15} className="text-brand shrink-0" /> : <Search size={15} className="text-ink-3 shrink-0" />}
-        <input ref={inputRef} value={query}
-          onChange={e => { setQuery(e.target.value); setOpen(true); if (selected) setSelected(null); }}
+        <input value={query} onChange={e => { setQuery(e.target.value); setOpen(true); if (selected) setSelected(null); }}
           onFocus={() => setOpen(true)}
           placeholder={t("add_search")}
           className="flex-1 bg-transparent border-0 outline-none ring-0 text-sm text-ink p-0 focus:ring-0"
-          style={{ boxShadow: "none" }}
-        />
+          style={{ boxShadow: "none" }} />
         {query && <button onClick={clear} className="text-ink-3 hover:text-ink"><X size={14} /></button>}
       </div>
-
       {selected && (
         <div className="mt-2 flex items-center gap-2 text-sm text-brand-dark font-medium flex-wrap">
           <Check size={14} className="text-brand shrink-0" />
@@ -92,7 +89,6 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
           <button onClick={clear} className="ml-auto text-xs text-ink-3 hover:text-brand underline">{t("add_change")}</button>
         </div>
       )}
-
       {open && !selected && (
         <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-surface border border-surface-3 rounded-xl shadow-xl overflow-hidden">
           {results.length > 0 && (
@@ -101,8 +97,7 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
                 const city = CITIES.find(c => c.value === v.city)?.label ?? v.city;
                 return (
                   <li key={v.id}>
-                    <button onMouseDown={() => pick(v)}
-                      className="w-full text-left px-4 py-3 hover:bg-surface-2 transition-colors flex items-center gap-3 border-b border-surface-3 last:border-0">
+                    <button onMouseDown={() => pick(v)} className="w-full text-left px-4 py-3 hover:bg-surface-2 transition-colors flex items-center gap-3 border-b border-surface-3 last:border-0">
                       <MapPin size={13} className="text-brand shrink-0" />
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-ink truncate">{v.name}</div>
@@ -115,25 +110,17 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
               })}
             </ul>
           )}
-          {noResults && !showNew && (
+          {query.trim().length > 0 && results.length === 0 && !showNew && (
             <div className="px-4 py-4">
-              <p className="text-sm text-ink-3 mb-3">
-                {t("add_no_results")} <span className="font-medium text-ink">"{query}"</span>
-              </p>
-              <button onMouseDown={() => { setShowNew(true); setNvName(query); setOpen(false); }}
-                className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5">
+              <p className="text-sm text-ink-3 mb-3">{t("add_no_results")} <span className="font-medium text-ink">"{query}"</span></p>
+              <button onMouseDown={() => { setShowNew(true); setNvName(query); setOpen(false); }} className="btn-primary text-xs px-3 py-2 flex items-center gap-1.5">
                 <Plus size={13} /> {t("add_add_venue")} "{query}"
               </button>
             </div>
           )}
-          {query.trim() === "" && (
-            <div className="px-4 py-3 text-xs text-ink-3">
-              {t("add_search_hint")} — {all.length} {t("add_entries")}
-            </div>
-          )}
+          {query.trim() === "" && <div className="px-4 py-3 text-xs text-ink-3">{t("add_search_hint")} — {all.length} {t("add_entries")}</div>}
         </div>
       )}
-
       {showNew && !selected && (
         <div className="mt-3 p-4 bg-surface-2 rounded-xl border border-surface-3">
           <p className="text-xs font-medium text-ink-2 mb-3">{t("add_new_venue")}</p>
@@ -146,22 +133,16 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_venue_city")}</label>
               <div className="relative">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
-                <input
-                  value={nvCity ? (CITIES.find(c => c.value === nvCity)?.label ?? nvCity) : nvCitySearch}
+                <input value={nvCity ? (CITIES.find(c => c.value === nvCity)?.label ?? nvCity) : nvCitySearch}
                   onChange={e => { setNvCitySearch(e.target.value); setNvCity(""); }}
-                  placeholder="Søg efter by…"
-                  className="pl-7 text-sm"
-                  onFocus={() => { if (nvCity) { setNvCitySearch(""); setNvCity(""); } }}
-                />
+                  placeholder="Søg efter by…" className="pl-7 text-sm"
+                  onFocus={() => { if (nvCity) { setNvCitySearch(""); setNvCity(""); } }} />
               </div>
               {!nvCity && nvCitySearch && filteredCities.length > 0 && (
                 <div className="border border-surface-3 rounded-lg mt-1 bg-surface shadow-lg max-h-40 overflow-y-auto">
                   {filteredCities.map(c => (
-                    <button key={c.value} type="button"
-                      onMouseDown={() => { setNvCity(c.value); setNvCitySearch(c.label); }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 transition-colors border-b border-surface-3 last:border-0">
-                      {c.label}
-                    </button>
+                    <button key={c.value} type="button" onMouseDown={() => { setNvCity(c.value); setNvCitySearch(c.label); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 transition-colors border-b border-surface-3 last:border-0">{c.label}</button>
                   ))}
                 </div>
               )}
@@ -187,17 +168,108 @@ function VenueSearch({ onSelect }: { onSelect: (v: Venue) => void }) {
   );
 }
 
+// ── Offer section ─────────────────────────────────────────────────────────
+function OfferSection({ offerPrice, setOfferPrice, offerDays, setOfferDays, offerUntil, setOfferUntil }: {
+  offerPrice: string; setOfferPrice: (v: string) => void;
+  offerDays: string[]; setOfferDays: (v: string[]) => void;
+  offerUntil: string; setOfferUntil: (v: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasOffer = offerPrice || offerDays.length > 0 || offerUntil;
+
+  function toggleDay(d: string) {
+    setOfferDays(offerDays.includes(d) ? offerDays.filter(x => x !== d) : [...offerDays, d]);
+  }
+
+  function setPreset(preset: string) {
+    if (preset === "weekdays") setOfferDays(["1","2","3","4","5"]);
+    if (preset === "weekend")  setOfferDays(["6","0"]);
+    if (preset === "all")      setOfferDays(["0","1","2","3","4","5","6"]);
+  }
+
+  return (
+    <div className={clsx("rounded-xl border transition-all", hasOffer ? "border-brand/40 bg-brand-light/20" : "border-surface-3 bg-surface-2")}>
+      <button type="button" onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left">
+        <Tag size={15} className={hasOffer ? "text-brand" : "text-ink-3"} />
+        <div className="flex-1">
+          <div className={clsx("text-sm font-medium", hasOffer ? "text-brand-dark" : "text-ink-2")}>
+            Tilbudspris (valgfrit)
+          </div>
+          {hasOffer ? (
+            <div className="text-xs text-ink-3 mt-0.5">
+              {offerPrice ? `${offerPrice} kr` : ""}
+              {offerDays.length > 0 ? ` · ${offerDays.sort().map(d => DAYS.find(x => x.value === d)?.label).join(", ")}` : ""}
+              {offerUntil ? ` · frem til ${offerUntil}` : ""}
+            </div>
+          ) : (
+            <div className="text-xs text-ink-3 mt-0.5">Har stedet et særtilbud på denne drik?</div>
+          )}
+        </div>
+        {expanded ? <ChevronUp size={14} className="text-ink-3 shrink-0" /> : <ChevronDown size={14} className="text-ink-3 shrink-0" />}
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-surface-3 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Tilbudspris (DKK)</label>
+              <input type="number" value={offerPrice} onChange={e => setOfferPrice(e.target.value)}
+                placeholder="f.eks. 35" min="0" step="5" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-ink-2 mb-1">Frem til kl.</label>
+              <select value={offerUntil} onChange={e => setOfferUntil(e.target.value)}>
+                <option value="">— vælg tidspunkt —</option>
+                {UNTIL_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <label className="block text-[11px] font-medium text-ink-2 mb-2">Gælder hvilke dage?</label>
+          <div className="flex gap-1.5 flex-wrap mb-3">
+            {DAYS.map(d => (
+              <button key={d.value} type="button" onClick={() => toggleDay(d.value)}
+                className={clsx("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                  offerDays.includes(d.value) ? "bg-brand text-white border-brand" : "bg-surface border-surface-3 text-ink-2 hover:border-brand hover:text-brand")}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button type="button" onClick={() => setPreset("weekdays")} className="text-xs text-brand hover:underline">Vælg hverdage</button>
+            <span className="text-ink-3 text-xs">·</span>
+            <button type="button" onClick={() => setPreset("weekend")} className="text-xs text-brand hover:underline">Vælg weekend</button>
+            <span className="text-ink-3 text-xs">·</span>
+            <button type="button" onClick={() => setPreset("all")} className="text-xs text-brand hover:underline">Vælg alle</button>
+            {(offerDays.length > 0 || offerPrice || offerUntil) && (
+              <>
+                <span className="text-ink-3 text-xs">·</span>
+                <button type="button" onClick={() => { setOfferPrice(""); setOfferDays([]); setOfferUntil(""); }}
+                  className="text-xs text-red-500 hover:underline">Ryd tilbud</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddForm() {
   const toast = useToast();
   const { t, locale } = useLocale();
   const { status } = useSession();
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
-  const [drink, setDrink] = useState("");
-  const [category, setCategory] = useState("");
-  const [price, setPrice] = useState("");
-  const [notes, setNotes] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [drink,      setDrink]      = useState("");
+  const [category,   setCategory]   = useState("");
+  const [price,      setPrice]      = useState("");
+  const [notes,      setNotes]      = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerDays,  setOfferDays]  = useState<string[]>([]);
+  const [offerUntil, setOfferUntil] = useState("");
+  const [photoFile,  setPhotoFile]  = useState<File | null>(null);
+  const [photoUrl,   setPhotoUrl]   = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -223,21 +295,26 @@ function AddForm() {
   function removePhoto() { setPhotoFile(null); setPhotoUrl(null); if (fileRef.current) fileRef.current.value = ""; }
 
   async function submit() {
-    if (!selectedVenue) { toast(t("toast_fail_venue_sel"), "error"); return; }
-    if (!drink.trim())  { toast(t("toast_fail_drink"), "error"); return; }
-    if (!price || isNaN(+price)) { toast(t("toast_fail_price"), "error"); return; }
+    if (!selectedVenue)          { toast(t("toast_fail_venue_sel"), "error"); return; }
+    if (!drink.trim())           { toast(t("toast_fail_drink"),     "error"); return; }
+    if (!price || isNaN(+price)) { toast(t("toast_fail_price"),     "error"); return; }
     setSubmitting(true);
     try {
       const fd = new FormData();
-      fd.append("venue_id", String(selectedVenue.id));
-      fd.append("drink", drink.trim());
-      fd.append("category", category);
+      fd.append("venue_id",  String(selectedVenue.id));
+      fd.append("drink",     drink.trim());
+      fd.append("category",  category);
       fd.append("price_dkk", price);
-      fd.append("notes", notes.trim());
-      if (photoFile) fd.append("photo", photoFile);
+      fd.append("notes",     notes.trim());
+      if (offerPrice)          fd.append("offer_price", offerPrice);
+      if (offerDays.length > 0) fd.append("offer_days",  offerDays.join(","));
+      if (offerUntil)          fd.append("offer_until", offerUntil);
+      if (photoFile)           fd.append("photo",       photoFile);
       const res = await fetch("/api/entries", { method: "POST", body: fd });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      setDrink(""); setCategory(""); setPrice(""); setNotes(""); removePhoto();
+      setDrink(""); setCategory(""); setPrice(""); setNotes("");
+      setOfferPrice(""); setOfferDays([]); setOfferUntil("");
+      removePhoto();
       toast(t("toast_entry_saved"));
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : t("toast_fail_save"), "error");
@@ -253,7 +330,7 @@ function AddForm() {
       <div className="mb-7">
         <div className="section-label">{t("add_step2")}</div>
         <div className="card">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-[11px] font-medium text-ink-2 mb-1">{t("add_drink")}</label>
               <input value={drink} onChange={e => setDrink(e.target.value)} placeholder={t("add_drink_ph")} />
@@ -274,6 +351,13 @@ function AddForm() {
               <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("add_notes_ph")} />
             </div>
           </div>
+
+          {/* Offer price section */}
+          <OfferSection
+            offerPrice={offerPrice} setOfferPrice={setOfferPrice}
+            offerDays={offerDays}   setOfferDays={setOfferDays}
+            offerUntil={offerUntil} setOfferUntil={setOfferUntil}
+          />
         </div>
       </div>
       <div className="mb-8">

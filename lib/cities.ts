@@ -1,7 +1,3 @@
-// ── Tilføj nye byer her ───────────────────────────────────────────────────
-// Tilføj blot en ny linje: { value: "by-slug", label: "Bynavn" }
-// Søgebaren vises automatisk når der er over 6 byer.
-
 export const CITIES = [
   { value: "koebenhavn",  label: "København"  },
   { value: "aarhus",      label: "Aarhus"     },
@@ -24,9 +20,7 @@ export const CITIES = [
   { value: "soenderborg", label: "Sønderborg" },
   { value: "hjorring",    label: "Hjørring"   },
 ] as const;
-
 export type CityValue = (typeof CITIES)[number]["value"];
-
 export function getCityLabel(value: string): string {
   return CITIES.find(c => c.value === value)?.label ?? value;
 }
