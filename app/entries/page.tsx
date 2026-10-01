@@ -216,7 +216,7 @@ function OfferStrip({ price, days, until }: { price: number; days: string | null
 
   return (
     <div className={clsx(
-      "rounded-b-xl overflow-hidden -mx-5 -mb-5 mt-3 border-t",
+      "border-t",
       isActive ? "bg-green-600 border-green-600" : "bg-surface-2 border-surface-3"
     )}>
       <button
@@ -325,8 +325,8 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
           const userId = (session?.user as any)?.id;
           const isOwner = userId && String(e.user_id) === userId;
           return (
-            <div key={e.id} className="card p-3 md:p-5 group hover:border-surface-3 transition-all overflow-hidden">
-              <div className="flex gap-3 md:gap-4 items-start">
+            <div key={e.id} className="bg-surface border border-surface-3 rounded-xl group hover:border-surface-3 transition-all overflow-hidden">
+              <div className="flex gap-3 md:gap-4 items-start p-3 md:p-5">
                 {e.photo_path
                   ? <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
                   : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl">🍺</div>
