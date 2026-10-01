@@ -4,11 +4,11 @@ import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import AuthProvider from "@/components/AuthProvider";
 import { LocaleProvider } from "@/components/LocaleProvider";
-import { DM_Sans, DM_Mono, Playfair_Display } from "next/font/google";
+import { DM_Sans, DM_Mono, Montserrat } from "next/font/google";
 
-const dmSans   = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans", weight: ["300","400","500"] });
-const dmMono   = DM_Mono({ subsets: ["latin"], variable: "--font-dm-mono", weight: ["400","500"] });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", weight: ["400","700","900"], style: ["normal","italic"] });
+const dmSans      = DM_Sans({    subsets: ["latin"], variable: "--font-dm-sans",   weight: ["300","400","500"] });
+const dmMono      = DM_Mono({    subsets: ["latin"], variable: "--font-dm-mono",   weight: ["400","500"] });
+const montserrat  = Montserrat({ subsets: ["latin"], variable: "--font-playfair",  weight: ["500","600","700","800","900"] });
 
 export const metadata: Metadata = {
   title: "BarPriser — Danmark",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="da" className={`${dmSans.variable} ${dmMono.variable} ${playfair.variable}`}>
+    <html lang="da" className={`${dmSans.variable} ${dmMono.variable} ${montserrat.variable}`}>
       <body>
         <AuthProvider>
           <LocaleProvider>

@@ -5,7 +5,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans:  ["var(--font-dm-sans)", "system-ui", "sans-serif"],
-        serif: ["var(--font-playfair)", "Georgia", "serif"],
+        serif: ["var(--font-playfair)", "Montserrat", "sans-serif"],
         mono:  ["var(--font-dm-mono)", "monospace"],
       },
       colors: {
