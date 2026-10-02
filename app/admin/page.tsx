@@ -130,8 +130,7 @@ function EditEntryModal({ entry, onSave, onClose }: { entry: AdminEntry; onSave:
   const [price,      setPrice]      = useState(String(entry.price_dkk));
   const [notes,      setNotes]      = useState(entry.notes ?? "");
   const [offerPrice, setOfferPrice] = useState(entry.offer_price ? String(entry.offer_price) : "");
-  const [offerDays,  setOfferDays]  = useState<string[]>(entry.offer_days ? entry.offer_days.split(",") : []);
-  const [offerUntil, setOfferUntil] = useState(entry.offer_until ?? "");
+  const [offerRules,  setOfferRules]  = useState<OfferRuleAdmin[]>(parseAdminRules(entry.offer_days));
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState("");
 
@@ -141,11 +140,11 @@ function EditEntryModal({ entry, onSave, onClose }: { entry: AdminEntry; onSave:
     setSaving(true);
     const res = await fetch("/api/admin/entries", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: entry.id, drink: drink.trim(), category: category || null, price_dkk: +price, notes: notes.trim() || null, offer_price: offerPrice ? +offerPrice : null, offer_days: offerDays.length > 0 ? offerDays.join(",") : null, offer_until: offerUntil || null }),
+      body: JSON.stringify({ id: entry.id, drink: drink.trim(), category: category || null, price_dkk: +price, notes: notes.trim() || null, offer_price: offerPrice ? +offerPrice : null, offer_days: offerRules.filter(r=>r.days.length>0).length > 0 ? JSON.stringify(offerRules.filter(r=>r.days.length>0).map(r=>({days:r.days,until:r.until||null}))) : null, offer_until: null }),
     });
     setSaving(false);
     if (!res.ok) { setError("Kunne ikke gemme"); return; }
-    onSave({ ...entry, drink: drink.trim(), category: category || null, price_dkk: +price, notes: notes.trim() || null, offer_price: offerPrice ? +offerPrice : null, offer_days: offerDays.length > 0 ? offerDays.join(",") : null, offer_until: offerUntil || null });
+    onSave({ ...entry, drink: drink.trim(), category: category || null, price_dkk: +price, notes: notes.trim() || null, offer_price: offerPrice ? +offerPrice : null, offer_days: offerRules.filter(r=>r.days.length>0).length > 0 ? JSON.stringify(offerRules.filter(r=>r.days.length>0).map(r=>({days:r.days,until:r.until||null}))) : null, offer_until: null });
     onClose();
   }
 
