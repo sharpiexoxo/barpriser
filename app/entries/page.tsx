@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, Suspense } from "react";
-import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, ChevronDown, Star, Tag } from "lucide-react";
+import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, ChevronDown, Star, Tag, ZoomIn, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/Toast";
@@ -272,6 +272,7 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [reporting, setReporting] = useState<Entry | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -328,7 +329,12 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
             <div key={e.id} className="bg-surface border border-surface-3 rounded-xl group hover:border-surface-3 transition-all overflow-hidden">
               <div className="flex gap-3 md:gap-4 items-start p-3 md:p-5">
                 {e.photo_path
-                  ? <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
+                  ? <button onClick={() => setLightbox(e.photo_path!)} className="shrink-0 group/photo relative">
+                      <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 hover:opacity-90 transition-opacity" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity">
+                        <div className="bg-black/40 rounded-lg p-1"><ZoomIn size={14} className="text-white" /></div>
+                      </div>
+                    </button>
                   : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl">🍺</div>
                 }
                 <div className="flex-1 min-w-0">
@@ -377,6 +383,28 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
         <p className="text-center text-sm text-ink-3 mt-6">
           <a href="/login" className="text-brand font-medium hover:underline">Log ind</a> for at rapportere priser
         </p>
+      )}
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <div className="relative max-w-3xl w-full">
+            <img
+              src={lightbox}
+              alt="Forstørret billede"
+              className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+            />
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <p className="text-center text-white/40 text-xs mt-3">Tryk for at lukke</p>
+          </div>
+        </div>
       )}
     </div>
   );
