@@ -227,8 +227,21 @@ export default function AdminPage() {
   const [confirmDelete, setConfirmDelete] = useState<{ type: "venue"|"user"|"entry"; id: number; name: string } | null>(null);
   const [confirmAdmin,  setConfirmAdmin]  = useState<{ user: AdminUser; give: boolean } | null>(null);
 
-  useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
-  useEffect(() => { if (status === "authenticated") loadAll(); }, [status]);
+  useEffect(() => {
+    if (status === "unauthenticated") { router.push("/login"); return; }
+    if (status === "authenticated") {
+      // Verify admin access via API — if denied, redirect away
+      fetch("/api/admin/venues")
+        .then(r => {
+          if (r.status === 403 || r.status === 401) {
+            router.replace("/add"); // Not an admin — send them away
+          } else {
+            loadAll();
+          }
+        })
+        .catch(() => router.replace("/add"));
+    }
+  }, [status, router]);
 
   async function loadAll() {
     setLoading(true);
