@@ -23,11 +23,8 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    setIsAdmin(false);
-    if (!session) return;
-    fetch("/api/admin/venues")
-      .then(r => setIsAdmin(r.ok && r.status !== 403))
-      .catch(() => setIsAdmin(false));
+    if (!session) { setIsAdmin(false); return; }
+    fetch("/api/admin/venues").then(r => { if (r.ok) setIsAdmin(true); else setIsAdmin(false); }).catch(() => setIsAdmin(false));
   }, [session]);
 
   const featuredByCity = CITIES.map(c => ({

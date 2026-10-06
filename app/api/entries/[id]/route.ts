@@ -1,0 +1,11 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getDb, initDb } from "@/lib/db";
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const db = getDb(); await initDb();
+    await db.execute({ sql: "DELETE FROM entries WHERE id = ?", args: [params.id] });
+    return NextResponse.json({ ok: true });
+  } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
+}

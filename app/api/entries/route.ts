@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getDb, initDb } from "@/lib/db";
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+const ALLOWED = new Set(["image/jpeg","image/png","image/gif","image/webp"]);
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const venueId  = searchParams.get("venue_id");
+    const category = searchParams.get("category");
+    const city     = searchParams.get("city");
+    const limit    = parseInt(searchParams.get("limit") || "100");
+    const offset   = parseInt(searchParams.get("offset") || "0");
+    const conditions: string[] = [];
+    const args: (string | number)[] = [];
+    if (venueId)  { conditions.push("e.venue_id = ?"); args.push(venueId); }
+    if (category) { conditions.push("e.category = ?"); args.push(category); }
+    if (city)     { conditions.push("v.city = ?");     args.push(city); }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const db = getDb(); await initDb();
+    const result = await db.execute({
+      sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city,
+                   u.name as user_name,
+                   (SELECT COUNT(*) FROM reports r WHERE r.entry_id = e.id AND r.resolved = 0) as report_count
+            FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id
+            ${where} ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
+      args: [...args, limit, offset],
+    });
+    return NextResponse.json(result.rows.map(r => ({ ...r })));
+  } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
+}
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Ikke logget ind" }, { status: 401 });
+    const formData  = await req.formData();
+    const venueId   = formData.get("venue_id") as string;
+    const drink     = (formData.get("drink") as string)?.trim();
+    const category  = (formData.get("category") as string)?.trim();
+    const priceRaw  = formData.get("price_dkk") as string;
+    const notes     = (formData.get("notes") as string)?.trim();
+    const photo     = formData.get("photo") as File | null;
+    const offerPriceRaw = formData.get("offer_price") as string | null;
+    const offerDays     = (formData.get("offer_days") as string | null)?.trim() || null;
+    const offerUntil    = (formData.get("offer_until") as string | null)?.trim() || null;
+    if (!venueId) return NextResponse.json({ error: "venue_id påkrævet" }, { status: 400 });
+    if (!drink)   return NextResponse.json({ error: "Drik er påkrævet" }, { status: 400 });
+    const price = parseFloat(priceRaw);
+    if (isNaN(price)) return NextResponse.json({ error: "Gyldig pris påkrævet" }, { status: 400 });
+    const offerPrice = offerPriceRaw ? parseFloat(offerPriceRaw) : null;
+    const db = getDb(); await initDb();
+    const userId = (session.user as any).id ?? null;
+    let photoPath: string | null = null;
+    if (photo && ALLOWED.has(photo.type)) {
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+      if (cloudName && uploadPreset) {
+        try {
+          const fd = new FormData(); fd.append("file", photo); fd.append("upload_preset", uploadPreset);
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
+          if (res.ok) photoPath = (await res.json()).secure_url;
+        } catch {}
+      }
+    }
+    const result = await db.execute({
+      sql: "INSERT INTO entries (venue_id, user_id, drink, category, price_dkk, notes, photo_path, offer_price, offer_days, offer_until) VALUES (?,?,?,?,?,?,?,?,?,?)",
+      args: [venueId, userId, drink, category || null, price, notes || null, photoPath, offerPrice, offerDays, offerUntil],
+    });
+    const entry = await db.execute({ sql: `SELECT e.*, v.name as venue_name, v.location as venue_location, v.city as venue_city, u.name as user_name FROM entries e JOIN venues v ON v.id = e.venue_id LEFT JOIN users u ON u.id = e.user_id WHERE e.id = ?`, args: [result.lastInsertRowid!] });
+    return NextResponse.json({ ...entry.rows[0] }, { status: 201 });
+  } catch (e) { return NextResponse.json({ error: String(e) }, { status: 500 }); }
+}
