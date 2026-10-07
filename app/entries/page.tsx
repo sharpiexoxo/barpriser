@@ -105,7 +105,7 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
   const [loading, setLoading] = useState(true);
 
   const CATEGORIES = [
-    "Fadøl", "Dåse/flaskeøl", "Specialøl", "Cider",
+    "Fadøl","Kande øl", "Dåse/flaskeøl", "Specialøl", "Cider",
     "Shots", "Drinks", "Cocktails", "Vin",
     "Spiritus", "Sodavand", "Energi- og læskedrikke",
     "Vand", "Kaffe & varme drikke", "Alkoholfri",
