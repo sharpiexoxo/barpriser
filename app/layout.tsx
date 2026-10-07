@@ -13,6 +13,17 @@ const montserrat  = Montserrat({ subsets: ["latin"], variable: "--font-playfair"
 export const metadata: Metadata = {
   title: "BarPriser — Danmark",
   description: "Fælles drikkevarepriser i Danmark",
+  icons: {
+    icon: [
+      { url: "/favicon.ico",  sizes: "any" },
+      { url: "/icon.svg",     type: "image/svg+xml" },
+      { url: "/icon.png",     type: "image/png", sizes: "512x512" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180" },
+    ],
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

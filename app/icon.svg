@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="60" fill="#C94E2A"/>
+
+  <!-- Foam bubbles -->
+  <ellipse cx="36" cy="40" rx="8" ry="10" fill="#FDFAF7"/>
+  <ellipse cx="52" cy="35" rx="10" ry="10" fill="#FDFAF7"/>
+  <ellipse cx="68" cy="40" rx="8" ry="10" fill="#FDFAF7"/>
+
+  <!-- Mug body -->
+  <rect x="30" y="44" width="46" height="46" rx="5" fill="#FDFAF7"/>
+
+  <!-- Beer liquid -->
+  <rect x="32" y="54" width="42" height="35" rx="3" fill="#E8795A"/>
+
+  <!-- Handle -->
+  <path d="M76 52 Q96 52 96 66 Q96 80 76 80"
+        stroke="#FDFAF7" stroke-width="9" fill="none" stroke-linecap="round"/>
+
+  <!-- kr text on beer -->
+  <text x="53" y="78" text-anchor="middle"
+        font-family="Arial Black, Arial" font-weight="900" font-size="20"
+        fill="#FDFAF7">kr</text>
+</svg>
