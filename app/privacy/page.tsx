@@ -21,6 +21,7 @@ export default function PrivacyPage() {
         <section className="mb-8">
           <h2>1. Dataansvarlig</h2>
           <p>BarPriser er dataansvarlig for behandlingen af de personoplysninger, vi modtager om dig. Har du spørgsmål til vores behandling af dine oplysninger, er du velkommen til at kontakte os.</p>
+          <p>Dette kan du gøre ved at sende os en mail til kontakt@barpriser.dk</p>
         </section>
 
         <section className="mb-8">
