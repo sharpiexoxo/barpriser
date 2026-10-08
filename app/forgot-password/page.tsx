@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Mail, ArrowLeft } from "lucide-react";
+import LegalFooter from "@/components/LegalFooter";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,7 @@ export default function ForgotPasswordPage() {
             <p className="text-center text-sm text-ink-3 mt-4"><Link href="/login" className="text-brand font-medium hover:underline flex items-center justify-center gap-1"><ArrowLeft size={13} /> Tilbage til login</Link></p>
           </>
         )}
+      <LegalFooter />
       </div>
     </div>
   );

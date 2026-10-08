@@ -30,3 +30,20 @@
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 * { max-width: 100%; box-sizing: border-box; }
 img { max-width: 100%; }
+
+/* Legal pages prose styles */
+.prose-custom h2 {
+  @apply font-serif text-xl font-bold text-ink mt-8 mb-3;
+}
+.prose-custom p {
+  @apply text-ink-2 text-sm leading-relaxed mb-3;
+}
+.prose-custom ul {
+  @apply list-disc list-inside text-sm text-ink-2 mb-3 space-y-1.5 pl-2;
+}
+.prose-custom a {
+  @apply text-brand hover:underline;
+}
+.prose-custom strong {
+  @apply font-semibold text-ink;
+}

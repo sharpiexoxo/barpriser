@@ -122,6 +122,12 @@ export default function Sidebar() {
             </Link>
           )}
         </div>
+      <div className="px-4 pb-3 border-t border-white/[0.05] pt-3">
+        <div className="flex gap-3 justify-center">
+          <a href="/privacy" className="text-[10px] text-white/20 hover:text-white/50 transition-colors">Privatlivspolitik</a>
+          <span className="text-white/10 text-[10px]">·</span>
+          <a href="/cookies" className="text-[10px] text-white/20 hover:text-white/50 transition-colors">Cookies</a>
+        </div>
       </div>
     </aside>
   );
