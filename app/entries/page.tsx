@@ -88,14 +88,8 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
 
 // ── Step 3: Pick drink category ───────────────────────────────────────────
 function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: string) => void }) {
-  const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const CATEGORIES = [
-    t("cat_beer_draft"), t("cat_beer_bottle"), t("cat_wine"), t("cat_cocktail"),
-    t("cat_spirit"), t("cat_shot"), t("cat_soft"), t("cat_other"),
-  ];
 
   useEffect(() => {
     fetch(`/api/entries?venue_id=${venue.id}`)
@@ -106,7 +100,7 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 
   if (loading) return <div className="text-center py-16 text-ink-3 text-sm">Indlæser kategorier…</div>;
 
-  // Find which categories actually have entries for this venue
+  // Show all categories that actually have entries — no hardcoded filter
   const usedCategories = [...new Set(entries.map(e => e.category).filter(Boolean))] as string[];
   const hasUncategorized = entries.some(e => !e.category);
 
@@ -134,16 +128,19 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 
       <div className="section-label mt-5 mb-3">Eller vælg kategori</div>
       <div className="grid gap-2 md:grid-cols-2">
-        {CATEGORIES.filter(c => usedCategories.includes(c)).map(c => {
+        {usedCategories.map(c => {
           const count = entries.filter(e => e.category === c).length;
           const avgPrice = Math.round(entries.filter(e => e.category === c).reduce((s, e) => s + e.price_dkk, 0) / count);
           return (
             <button key={c} onClick={() => onSelect(c)}
               className="card text-left hover:border-brand transition-all group flex items-center justify-between">
-              <div>
-                <div className="font-medium text-ink group-hover:text-brand transition-colors">{c}</div>
-                <div className="font-mono text-xs text-ink-3 mt-0.5">
-                  {count} {count === 1 ? "pris" : "priser"} · gns. {avgPrice} kr
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{getCategoryIcon(c)}</span>
+                <div>
+                  <div className="font-medium text-ink group-hover:text-brand transition-colors">{c}</div>
+                  <div className="font-mono text-xs text-ink-3 mt-0.5">
+                    {count} {count === 1 ? "pris" : "priser"} · gns. {avgPrice} kr
+                  </div>
                 </div>
               </div>
               <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors" />
