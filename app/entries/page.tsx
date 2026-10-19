@@ -1,12 +1,10 @@
 "use client";
-import { useCallback, useEffect, useState, Suspense } from "react";
-import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft, ChevronDown, Star, Tag, ZoomIn, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Trash2, MapPin, Flag, User, ChevronRight, ChevronLeft } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/Toast";
 import ReportModal from "@/components/ReportModal";
 import { useLocale } from "@/components/LocaleProvider";
-import CityPicker from "@/components/CityPicker";
 import { CITIES } from "@/lib/cities";
 import type { Entry, Venue } from "@/lib/db";
 import clsx from "clsx";
@@ -15,6 +13,27 @@ function formatDate(iso: string) {
   return new Date(iso + "Z").toLocaleDateString("da-DK", {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
   });
+}
+
+// ── Step 1: Pick city ─────────────────────────────────────────────────────
+function StepCity({ onSelect }: { onSelect: (city: string) => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="text-5xl mb-4">🏙️</div>
+      <h3 className="font-serif text-2xl font-bold text-ink mb-2">Vælg en by</h3>
+      <p className="text-sm text-ink-3 mb-8 max-w-xs">
+        Vælg den by du vil se drikkevarepriser fra
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center max-w-md">
+        {CITIES.map(c => (
+          <button key={c.value} onClick={() => onSelect(c.value)}
+            className="px-6 py-3 rounded-xl border-2 border-surface-3 bg-surface hover:border-brand hover:text-brand text-ink-2 text-sm font-medium transition-all flex items-center gap-2">
+            {c.label} <ChevronRight size={14} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── Step 2: Pick bar ──────────────────────────────────────────────────────
@@ -34,81 +53,48 @@ function StepBar({ city, onSelect }: { city: string; onSelect: (venue: Venue) =>
   if (loading) return <div className="text-center py-16 text-ink-3 text-sm">Indlæser barer…</div>;
 
   if (venues.length === 0) return (
-    <div className="text-center py-16 text-ink-3 px-4">
+    <div className="text-center py-16 text-ink-3">
       <div className="text-4xl mb-3 opacity-30">🍺</div>
       <p className="text-sm">Ingen barer registreret i {cityLabel} endnu</p>
       <a href="/add" className="btn-primary inline-flex mt-4 text-sm">Tilføj den første bar</a>
     </div>
   );
 
-  const sponsored = venues.filter(v => v.is_featured);
-  const regular   = venues.filter(v => !v.is_featured);
-
-  function VenueCard({ v }: { v: Venue }) {
-    return (
-      <button onClick={() => onSelect(v)}
-        className={clsx(
-          "card text-left hover:border-brand transition-all group flex items-start justify-between gap-3 w-full",
-          v.is_featured && "border-brand/30 bg-brand-light/10"
-        )}>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-            {v.is_featured && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-brand text-white px-2 py-0.5 rounded-full shrink-0">
-                <Star size={8} className="fill-white" /> Sponsoreret
-              </span>
-            )}
-          </div>
-          <div className="font-serif text-lg font-bold text-ink group-hover:text-brand transition-colors truncate">{v.name}</div>
-          {v.location && (
-            <div className="flex items-center gap-1 text-xs text-ink-3 mt-1">
-              <MapPin size={10} className="shrink-0" /><span className="truncate">{v.location}</span>
-            </div>
-          )}
-          <div className="font-mono text-xs text-ink-3 mt-2">
-            {v.entry_count ?? 0} {(v.entry_count ?? 0) === 1 ? "pris" : "priser"} registreret
-          </div>
-        </div>
-        <ChevronRight size={18} className="text-ink-3 group-hover:text-brand shrink-0 mt-1 transition-colors" />
-      </button>
-    );
-  }
-
   return (
     <div>
       <p className="text-sm text-ink-3 mb-4">{venues.length} {venues.length === 1 ? "bar" : "barer"} i {cityLabel}</p>
-      {sponsored.length > 0 && (
-        <div className="mb-5">
-          <div className="section-label mb-3">
-            <Star size={10} className="text-brand fill-brand" /> Sponsorerede steder
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {sponsored.map(v => <VenueCard key={v.id} v={v} />)}
-          </div>
-        </div>
-      )}
-      {regular.length > 0 && (
-        <div>
-          {sponsored.length > 0 && <div className="section-label mb-3">Alle barer</div>}
-          <div className="grid gap-3 md:grid-cols-2">
-            {regular.map(v => <VenueCard key={v.id} v={v} />)}
-          </div>
-        </div>
-      )}
+      <div className="grid gap-3 md:grid-cols-2">
+        {venues.map(v => (
+          <button key={v.id} onClick={() => onSelect(v)}
+            className="card text-left hover:border-brand transition-all group flex items-start justify-between gap-3">
+            <div>
+              <div className="font-serif text-lg font-bold text-ink group-hover:text-brand transition-colors">{v.name}</div>
+              {v.location && (
+                <div className="flex items-center gap-1 text-xs text-ink-3 mt-1">
+                  <MapPin size={10} />{v.location}
+                </div>
+              )}
+              <div className="font-mono text-xs text-ink-3 mt-2">
+                {v.entry_count ?? 0} {(v.entry_count ?? 0) === 1 ? "pris" : "priser"} registreret
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-ink-3 group-hover:text-brand shrink-0 mt-1 transition-colors" />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ── Step 3: Pick category ─────────────────────────────────────────────────
+// ── Step 3: Pick drink category ───────────────────────────────────────────
 function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: string) => void }) {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const CATEGORIES = [
-    "Fadøl","Kande øl", "Dåse/flaskeøl", "Specialøl", "Cider",
-    "Shots", "Drinks", "Cocktails", "Vin",
-    "Spiritus", "Sodavand", "Energi- og læskedrikke",
-    "Vand", "Kaffe & varme drikke", "Alkoholfri",
+    t("cat_beer_draft"), t("cat_beer_bottle"), t("cat_wine"), t("cat_cocktail"),
+    t("cat_spirit"), t("cat_shot"), t("cat_soft"), t("cat_other"),
   ];
 
   useEffect(() => {
@@ -120,11 +106,12 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 
   if (loading) return <div className="text-center py-16 text-ink-3 text-sm">Indlæser kategorier…</div>;
 
+  // Find which categories actually have entries for this venue
   const usedCategories = [...new Set(entries.map(e => e.category).filter(Boolean))] as string[];
   const hasUncategorized = entries.some(e => !e.category);
 
   if (entries.length === 0) return (
-    <div className="text-center py-16 text-ink-3 px-4">
+    <div className="text-center py-16 text-ink-3">
       <div className="text-4xl mb-3 opacity-30">🍺</div>
       <p className="text-sm">Ingen priser registreret på {venue.name} endnu</p>
       <a href="/add" className="btn-primary inline-flex mt-4 text-sm">Tilføj den første pris</a>
@@ -134,14 +121,17 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
   return (
     <div>
       <p className="text-sm text-ink-3 mb-4">Vælg en drikke-kategori for at se priser</p>
+
+      {/* Show all */}
       <button onClick={() => onSelect("__all__")}
         className="card w-full text-left hover:border-brand transition-all group flex items-center justify-between mb-3">
         <div>
           <div className="font-medium text-ink group-hover:text-brand transition-colors">Vis alle priser</div>
           <div className="font-mono text-xs text-ink-3 mt-0.5">{entries.length} {entries.length === 1 ? "pris" : "priser"} i alt</div>
         </div>
-        <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors shrink-0" />
+        <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors" />
       </button>
+
       <div className="section-label mt-5 mb-3">Eller vælg kategori</div>
       <div className="grid gap-2 md:grid-cols-2">
         {CATEGORIES.filter(c => usedCategories.includes(c)).map(c => {
@@ -150,11 +140,13 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
           return (
             <button key={c} onClick={() => onSelect(c)}
               className="card text-left hover:border-brand transition-all group flex items-center justify-between">
-              <div className="min-w-0">
+              <div>
                 <div className="font-medium text-ink group-hover:text-brand transition-colors">{c}</div>
-                <div className="font-mono text-xs text-ink-3 mt-0.5">{count} {count === 1 ? "pris" : "priser"} · gns. {avgPrice} kr</div>
+                <div className="font-mono text-xs text-ink-3 mt-0.5">
+                  {count} {count === 1 ? "pris" : "priser"} · gns. {avgPrice} kr
+                </div>
               </div>
-              <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors shrink-0 ml-2" />
+              <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors" />
             </button>
           );
         })}
@@ -163,9 +155,11 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
             className="card text-left hover:border-brand transition-all group flex items-center justify-between">
             <div>
               <div className="font-medium text-ink group-hover:text-brand transition-colors">Uden kategori</div>
-              <div className="font-mono text-xs text-ink-3 mt-0.5">{entries.filter(e => !e.category).length} priser</div>
+              <div className="font-mono text-xs text-ink-3 mt-0.5">
+                {entries.filter(e => !e.category).length} priser
+              </div>
             </div>
-            <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors shrink-0 ml-2" />
+            <ChevronRight size={18} className="text-ink-3 group-hover:text-brand transition-colors" />
           </button>
         )}
       </div>
@@ -174,105 +168,37 @@ function StepCategory({ venue, onSelect }: { venue: Venue; onSelect: (cat: strin
 }
 
 
-const DAY_NAMES: Record<string, string> = { "0":"Søn","1":"Man","2":"Tir","3":"Ons","4":"Tor","5":"Fre","6":"Lør" };
-const DAY_ORDER = ["1","2","3","4","5","6","0"];
+const CATEGORY_ICONS: Record<string, string> = {
+  "Fadøl":                    "🍺",
+  "Kande øl":                 "🫗",
+  "Dåse/flaskeøl":            "🍾",
+  "Specialøl":                "🍻",
+  "Cider":                    "🍏",
+  "Shots":                    "🥃",
+  "Drinks":                   "🍹",
+  "Cocktails":                "🍸",
+  "Vin":                      "🍷",
+  "Spiritus":                 "🥃",
+  "Sodavand":                 "🥤",
+  "Energi- og læskedrikke":   "⚡",
+  "Vand":                     "💧",
+  "Kaffe & varme drikke":     "☕",
+  "Alkoholfri":               "🧃",
+};
 
-interface OfferRule { days: string[]; until: string | null; }
-
-function parseOfferRules(offerDays: string | null, offerUntil: string | null): OfferRule[] {
-  if (!offerDays) return [];
-  // Try parsing as JSON array of rules (new format)
-  try {
-    const parsed = JSON.parse(offerDays);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {}
-  // Fall back to old flat format
-  return [{ days: offerDays.split(","), until: offerUntil }];
-}
-
-function isRuleActive(rule: OfferRule): boolean {
-  const now = new Date();
-  const currentDay  = String(now.getDay());
-  const currentTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-  const dayOk  = rule.days.length === 0 || rule.days.includes(currentDay);
-  const timeOk = !rule.until || currentTime <= rule.until;
-  return dayOk && timeOk;
-}
-
-function formatRuleLabel(rule: OfferRule): string {
-  const dayLabels = rule.days.length > 0
-    ? [...rule.days].sort((a,b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).map(d => DAY_NAMES[d]).join(", ")
-    : "Alle dage";
-  return rule.until ? `${dayLabels} · til ${rule.until}` : `${dayLabels} · hele dagen`;
-}
-
-function OfferStrip({ price, days, until }: { price: number; days: string | null; until: string | null }) {
-  const [expanded, setExpanded] = useState(false);
-  const rules = parseOfferRules(days, until);
-  const activeRule = rules.find(isRuleActive);
-  const isActive = !!activeRule;
-
-  if (rules.length === 0) return null;
-
-  return (
-    <div className={clsx(
-      "border-t",
-      isActive ? "bg-green-600 border-green-600" : "bg-surface-2 border-surface-3"
-    )}>
-      <button
-        type="button"
-        onClick={() => setExpanded(x => !x)}
-        className="w-full flex items-center justify-between px-4 py-2.5 gap-3"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <Tag size={13} className={clsx("shrink-0", isActive ? "text-white/80" : "text-ink-3")} />
-          <span className={clsx("font-bold text-base shrink-0", isActive ? "text-white" : "text-ink-2")}>
-            {Math.round(price)} kr
-          </span>
-          {isActive && activeRule?.until && (
-            <span className="text-sm text-white/70 shrink-0">· til {activeRule.until}</span>
-          )}
-          {!isActive && rules.length === 1 && rules[0].until && (
-            <span className="text-sm text-ink-3 shrink-0">· til {rules[0].until}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {isActive
-            ? <span className="text-sm font-medium text-white whitespace-nowrap">Aktivt nu ✓</span>
-            : <span className="text-xs text-ink-3 whitespace-nowrap">Ikke aktivt</span>
-          }
-          <ChevronDown
-            size={15}
-            className={clsx("transition-transform shrink-0", isActive ? "text-white/70" : "text-ink-3", expanded && "rotate-180")}
-          />
-        </div>
-      </button>
-      {expanded && (
-        <div className={clsx("px-4 pb-3 flex flex-col gap-1", isActive ? "text-white/70" : "text-ink-3")}>
-          {rules.map((rule, i) => {
-            const ruleActive = isRuleActive(rule);
-            return (
-              <div key={i} className={clsx("text-xs flex items-center gap-1.5",
-                ruleActive ? (isActive ? "text-white font-medium" : "text-green-600 font-medium") : "")}>
-                {ruleActive && <span>✓</span>}
-                {formatRuleLabel(rule)}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+function getCategoryIcon(category: string | null | undefined): string {
+  if (!category) return "🍺";
+  return CATEGORY_ICONS[category] ?? "🍺";
 }
 
 // ── Step 4: Show prices ───────────────────────────────────────────────────
 function StepPrices({ venue, category }: { venue: Venue; category: string }) {
   const toast = useToast();
   const { data: session } = useSession();
+  const { t } = useLocale();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [reporting, setReporting] = useState<Entry | null>(null);
-  const [lightbox, setLightbox] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -296,6 +222,7 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
     else toast("Kunne ikke slette", "error");
   }
 
+  const categoryLabel = category === "__all__" ? "Alle priser" : category === "__none__" ? "Uden kategori" : category;
   const avgPrice = entries.length ? Math.round(entries.reduce((s, e) => s + e.price_dkk, 0) / entries.length) : null;
   const minPrice = entries.length ? Math.min(...entries.map(e => e.price_dkk)) : null;
   const maxPrice = entries.length ? Math.max(...entries.map(e => e.price_dkk)) : null;
@@ -311,137 +238,95 @@ function StepPrices({ venue, category }: { venue: Venue; category: string }) {
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-2 md:gap-3 mb-6">
-        {([["Gennemsnit", avgPrice, "text-brand"], ["Laveste", minPrice, "text-ink"], ["Højeste", maxPrice, "text-ink"]] as const).map(([label, val, cls]) => (
-          <div key={label} className="card text-center p-3 md:p-5">
-            <div className="font-mono text-[9px] md:text-[10px] uppercase tracking-wide text-ink-3 mb-1">{label}</div>
-            <div className={clsx("font-serif text-xl md:text-2xl font-bold", cls)}>
-              {val} <span className="text-xs md:text-sm font-sans text-ink-3 font-normal">kr</span>
-            </div>
-          </div>
-        ))}
+      {/* Summary stats */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="card text-center">
+          <div className="font-mono text-[10px] uppercase tracking-wide text-ink-3 mb-1">Gennemsnit</div>
+          <div className="font-serif text-2xl font-bold text-brand">{avgPrice} <span className="text-sm font-sans text-ink-3 font-normal">kr</span></div>
+        </div>
+        <div className="card text-center">
+          <div className="font-mono text-[10px] uppercase tracking-wide text-ink-3 mb-1">Laveste</div>
+          <div className="font-serif text-2xl font-bold text-ink">{minPrice} <span className="text-sm font-sans text-ink-3 font-normal">kr</span></div>
+        </div>
+        <div className="card text-center">
+          <div className="font-mono text-[10px] uppercase tracking-wide text-ink-3 mb-1">Højeste</div>
+          <div className="font-serif text-2xl font-bold text-ink">{maxPrice} <span className="text-sm font-sans text-ink-3 font-normal">kr</span></div>
+        </div>
       </div>
+
       <div className="flex flex-col gap-3">
         {entries.map(e => {
           const userId = (session?.user as any)?.id;
           const isOwner = userId && String(e.user_id) === userId;
           return (
-            <div key={e.id} className="bg-surface border border-surface-3 rounded-xl group hover:border-surface-3 transition-all overflow-hidden">
-              <div className="flex gap-3 md:gap-4 items-start p-3 md:p-5">
-                {e.photo_path
-                  ? <button onClick={() => setLightbox(e.photo_path!)} className="shrink-0 group/photo relative">
-                      <img src={e.photo_path} alt={e.drink} className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-surface-3 hover:opacity-90 transition-opacity" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity">
-                        <div className="bg-black/40 rounded-lg p-1"><ZoomIn size={14} className="text-white" /></div>
-                      </div>
-                    </button>
-                  : <div className="w-14 h-14 md:w-16 md:h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-xl">🍺</div>
-                }
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] md:text-[15px] font-medium text-ink">{e.drink}</div>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    {e.category && <span className="badge bg-brand-light text-brand-dark">{e.category}</span>}
-                    {e.notes && <span className="badge bg-surface-2 text-ink-3">{e.notes}</span>}
-                    {(e.report_count ?? 0) > 0 && <span className="badge bg-red-50 text-red-600">⚑ {e.report_count}</span>}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-[11px] text-ink-3">{formatDate(e.created_at)}</span>
-                    {e.user_name && <span className="flex items-center gap-1 text-[11px] text-ink-3"><User size={9} />{e.user_name}</span>}
-                  </div>
+            <div key={e.id} className="card flex gap-4 items-start group hover:border-surface-3 transition-all">
+              {e.photo_path
+                ? <img src={e.photo_path} alt={e.drink}
+                    className="w-16 h-16 object-cover rounded-xl border border-surface-3 shrink-0" />
+                : <div className="w-16 h-16 bg-surface-2 rounded-xl border border-surface-3 shrink-0 flex items-center justify-center text-2xl">{getCategoryIcon(e.category)}</div>
+              }
+              <div className="flex-1 min-w-0">
+                <div className="text-[15px] font-medium text-ink">{e.drink}</div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  {e.category && <span className="badge bg-brand-light text-brand-dark">{e.category}</span>}
+                  {e.notes && <span className="badge bg-surface-2 text-ink-3">{e.notes}</span>}
+                  {(e.report_count ?? 0) > 0 && (
+                    <span className="badge bg-red-50 text-red-600">⚑ {e.report_count} rapport{(e.report_count ?? 0) !== 1 ? "er" : ""}</span>
+                  )}
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="font-serif text-xl md:text-2xl font-bold text-brand">{Math.round(e.price_dkk)}</div>
-                  <div className="font-mono text-[10px] text-ink-3">DKK</div>
-                  <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                    {session && (
-                      <button onClick={() => setReporting(e)} className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
-                        <Flag size={13} />
-                      </button>
-                    )}
-                    {isOwner && (
-                      <button onClick={() => del(e.id)} className="btn-danger p-1.5 rounded-lg">
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-[11px] text-ink-3">{formatDate(e.created_at)}</span>
+                  {e.user_name && <span className="flex items-center gap-1 text-[11px] text-ink-3"><User size={9} />{e.user_name}</span>}
                 </div>
               </div>
-              {e.offer_price && (
-                <OfferStrip price={e.offer_price} days={e.offer_days ?? null} until={e.offer_until ?? null} />
-              )}
+              <div className="text-right shrink-0">
+                <div className="font-serif text-2xl font-bold text-brand">{Math.round(e.price_dkk)}</div>
+                <div className="font-mono text-[10px] text-ink-3">DKK</div>
+                <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                  {session && (
+                    <button onClick={() => setReporting(e)}
+                      className="btn p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg">
+                      <Flag size={13} />
+                    </button>
+                  )}
+                  {isOwner && (
+                    <button onClick={() => del(e.id)} className="btn-danger p-1.5 rounded-lg">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}
       </div>
+
       {reporting && (
         <ReportModal entryId={reporting.id} drinkName={reporting.drink}
           onClose={() => setReporting(null)}
           onSuccess={() => { toast("Rapport sendt — tak!"); load(); }}
         />
       )}
+
       {!session && (
         <p className="text-center text-sm text-ink-3 mt-6">
           <a href="/login" className="text-brand font-medium hover:underline">Log ind</a> for at rapportere priser
         </p>
       )}
-
-      {lightbox && (
-        <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setLightbox(null)}
-        >
-          <div className="relative max-w-3xl w-full">
-            <img
-              src={lightbox}
-              alt="Forstørret billede"
-              className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
-            />
-            <button
-              onClick={() => setLightbox(null)}
-              className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center transition-colors"
-            >
-              <X size={18} />
-            </button>
-            <p className="text-center text-white/40 text-xs mt-3">Tryk for at lukke</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────
-function EntriesContent() {
-  const searchParams = useSearchParams();
-  const [city,     setCity]     = useState("");
-  const [venue,    setVenue]    = useState<Venue | null>(null);
+// ── Main page ─────────────────────────────────────────────────────────────
+export default function EntriesPage() {
+  const [city, setCity]         = useState("");
+  const [venue, setVenue]       = useState<Venue | null>(null);
   const [category, setCategory] = useState("");
 
-  useEffect(() => {
-    const cityParam  = searchParams.get("city");
-    const venueParam = searchParams.get("venue");
-    // Reset state when navigating to this page fresh (e.g. clicking nav)
-    if (!cityParam) {
-      setCity(""); setVenue(null); setCategory("");
-      return;
-    }
-    setCity(cityParam);
-    if (venueParam) {
-      fetch(`/api/venues?city=${cityParam}`)
-        .then(r => r.json())
-        .then(venues => {
-          if (Array.isArray(venues)) {
-            const match = venues.find((v: Venue) => String(v.id) === venueParam);
-            if (match) setVenue(match);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [searchParams]);
+  const cityLabel  = CITIES.find(c => c.value === city)?.label ?? "";
+  const step       = !city ? 1 : !venue ? 2 : !category ? 3 : 4;
 
-  const cityLabel = CITIES.find(c => c.value === city)?.label ?? "";
-  const step = !city ? 1 : !venue ? 2 : !category ? 3 : 4;
-
+  // Breadcrumb / back navigation
   function goBack() {
     if (category) { setCategory(""); return; }
     if (venue)    { setVenue(null);   return; }
@@ -456,35 +341,40 @@ function EntriesContent() {
 
   return (
     <ToastProvider>
-      <div className="border-b border-surface-3 px-4 md:px-10 py-5 md:py-6">
+      <div className="border-b border-surface-3 px-10 py-6">
+        {/* Breadcrumb */}
         {breadcrumb.length > 0 && (
-          <div className="flex items-center gap-1 text-xs text-ink-3 font-mono mb-2 flex-wrap overflow-hidden">
-            <button onClick={() => { setCity(""); setVenue(null); setCategory(""); }}
-              className="hover:text-brand transition-colors shrink-0">Alle byer</button>
+          <div className="flex items-center gap-1.5 text-xs text-ink-3 font-mono mb-2 flex-wrap">
+            <button onClick={() => { setCity(""); setVenue(null); setCategory(""); }} className="hover:text-brand transition-colors">
+              Alle byer
+            </button>
             {breadcrumb.map((crumb, i) => (
-              <span key={i} className="flex items-center gap-1 min-w-0">
-                <ChevronRight size={10} className="shrink-0" />
-                <span
-                  className={clsx("truncate", i === breadcrumb.length - 1 ? "text-ink font-medium" : "hover:text-brand cursor-pointer transition-colors")}
-                  onClick={() => { if (i === 0) { setVenue(null); setCategory(""); } if (i === 1) setCategory(""); }}>
+              <span key={i} className="flex items-center gap-1.5">
+                <ChevronRight size={11} />
+                <span className={i === breadcrumb.length - 1 ? "text-ink font-medium" : "hover:text-brand cursor-pointer transition-colors"}
+                  onClick={() => {
+                    if (i === 0) { setVenue(null); setCategory(""); }
+                    if (i === 1) { setCategory(""); }
+                  }}>
                   {crumb}
                 </span>
               </span>
             ))}
           </div>
         )}
+
         <div className="flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="font-serif text-2xl md:text-3xl font-bold text-ink truncate">
+          <div>
+            <h2 className="font-serif text-3xl font-bold text-ink">
               {step === 1 && "Alle priser"}
               {step === 2 && `Barer i ${cityLabel}`}
               {step === 3 && venue?.name}
-              {step === 4 && (category === "__all__" ? `Alle — ${venue?.name}` : category === "__none__" ? "Uden kategori" : category)}
+              {step === 4 && (category === "__all__" ? `Alle priser — ${venue?.name}` : category === "__none__" ? `Uden kategori — ${venue?.name}` : `${category} — ${venue?.name}`)}
             </h2>
-            <p className="text-sm text-ink-3 mt-1 truncate">
+            <p className="text-sm text-ink-3 mt-1">
               {step === 1 && "Vælg en by for at se priser"}
               {step === 2 && `${cityLabel} — vælg en bar`}
-              {step === 3 && "Vælg en drikke-kategori"}
+              {step === 3 && `Vælg en drikke-kategori`}
               {step === 4 && venue?.location && `📍 ${venue.location} · ${cityLabel}`}
             </p>
           </div>
@@ -495,20 +385,13 @@ function EntriesContent() {
           )}
         </div>
       </div>
-      <div className="px-4 md:px-10 py-6 md:py-8">
-        {step === 1 && <CityPicker onSelect={c => { setCity(c); setVenue(null); setCategory(""); }} />}
+
+      <div className="px-10 py-8">
+        {step === 1 && <StepCity onSelect={c => { setCity(c); setVenue(null); setCategory(""); }} />}
         {step === 2 && <StepBar city={city} onSelect={v => { setVenue(v); setCategory(""); }} />}
         {step === 3 && venue && <StepCategory venue={venue} onSelect={setCategory} />}
         {step === 4 && venue && category && <StepPrices venue={venue} category={category} />}
       </div>
     </ToastProvider>
-  );
-}
-
-export default function EntriesPage() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center h-64 text-ink-3 text-sm">Indlæser…</div>}>
-      <EntriesContent />
-    </Suspense>
   );
 }
